@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS DCO 엔지니어 양성과정 통합 대시보드</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #0b0f19;
+            color: #f1f5f9;
+            min-height: 100vh;
+            padding: 24px 16px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        /* 메인 히어로 배너 */
+        .hero {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #334155;
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        .badge-aws {
+            display: inline-block;
+            background: rgba(255, 153, 0, 0.15);
+            color: #ff9900;
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: #f8fafc;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        /* 🌟 메인 대시보드 그리드: 오늘 수업 & 전체 남은 시간 */
+        .dashboard-row {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .dashboard-row { grid-template-columns: 1fr; }
+        }
+        .dash-card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .dash-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .date-badge {
+            font-size: 12px;
+            background: #2563eb;
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        /* 오늘 들을 수업 리스트 */
+        .today-schedule-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .today-item {
+            display: flex;
+            align-items: center;
+            background: #1e293b;
+            border-left: 4px solid #a855f7;
+            padding: 10px 14px;
+            border-radius: 6px;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .today-item:hover {
+            background: #27354f;
+            transform: translateY(-1px);
+        }
+        .today-time {
+            font-family: monospace;
+            font-size: 13px;
+            color: #94a3b8;
+            min-width: 95px;
+        }
+        .today-subject {
+            font-weight: 700;
+            font-size: 14px;
+            color: #f8fafc;
+            flex: 1;
+        }
+        .today-room {
+            font-size: 12px;
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        /* 전체 남은 교육 시간 프로그레스 박스 */
+        .hours-box {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            height: 100%;
+        }
+        .hours-num {
+            font-size: 40px;
+            font-weight: 900;
+            color: #38bdf8;
+            line-height: 1;
+            margin: 8px 0;
+            text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+        }
+        .hours-desc {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: #1f2937;
+            border-radius: 4px;
+            margin-top: 14px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+            border-radius: 4px;
+        }
+
+        /* 🌟 과목별 남은 시간 게이지 그리드 */
+        .subject-hours-section {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .section-header-wrap {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .sec-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .subject-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+        .subj-card {
+            background: #162032;
+            border: 1px solid #233149;
+            border-radius: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .subj-card:hover {
+            border-color: #38bdf8;
+            background: #1c283f;
+            transform: translateY(-2px);
+        }
+        .subj-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 6px;
+        }
+        .subj-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .subj-rem-badge {
+            font-size: 12px;
+            font-weight: 800;
+            color: #38bdf8;
+        }
+        .subj-prog-bg {
+            width: 100%;
+            height: 6px;
+            background: #0f172a;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        .subj-prog-fill {
+            height: 100%;
+            background: #2563eb;
+            border-radius: 3px;
+        }
+        .subj-bottom {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        /* 🌟 DCO 직무 핵심 지식 캐러셀(슬라이드 카드 넘기기) */
+        .carousel-section {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .carousel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .carousel-nav-btn {
+            background: #1e293b;
+            color: #f1f5f9;
+            border: 1px solid #334155;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        .carousel-nav-btn:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+        .carousel-content {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 170px;
+            position: relative;
+            animation: fadeIn 0.25s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .c-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+        .c-title {
+            font-size: 17px;
+            font-weight: 800;
+            color: #f8fafc;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .c-desc {
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.6;
+        }
+        .c-desc ul {
+            margin-left: 18px;
+            margin-top: 6px;
+        }
+        .c-desc li {
+            margin-bottom: 4px;
+        }
+        .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 14px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .dot.active {
+            width: 24px;
+            background: #38bdf8;
+        }
+
+        /* 시간표 영역 */
+        .section-box {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 18px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .week-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .week-pill {
+            background: #1e293b;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .week-pill:hover { background: #334155; color: #fff; }
+        .week-pill.active { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
+
+        .table-responsive { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: center;
+        }
+        th, td {
+            padding: 10px 8px;
+            border: 1px solid #1f2937;
+        }
+        th {
+            background: #1e293b;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+        .col-time {
+            background: #131d2e;
+            color: #64748b;
+            font-family: monospace;
+            font-weight: 600;
+            width: 85px;
+        }
+        .col-lunch {
+            background: rgba(148, 163, 184, 0.05);
+            color: #64748b;
+            font-weight: 600;
+        }
+        .subject-cell {
+            background: #162032;
+            text-align: left;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .subject-cell:hover {
+            background: #1e293b;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+            border: 1px solid #38bdf8;
+        }
+        .subject-cell::after {
+            content: "📖 제공교재";
+            position: absolute;
+            right: 8px;
+            top: 8px;
+            font-size: 10px;
+            color: #64748b;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .subject-cell:hover::after {
+            opacity: 1;
+            color: #38bdf8;
+        }
+        .subject-name {
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .badge-hw { color: #f59e0b; }
+        .badge-net { color: #3b82f6; }
+        .badge-os { color: #10b981; }
+        .badge-auto { color: #a855f7; }
+        .badge-ai { color: #ec4899; }
+        .badge-optic { color: #06b6d4; }
+
+        /* 모달 팝업: 공식 제공 교재 정보 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 18px;
+            width: 100%;
+            max-width: 520px;
+            padding: 26px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            position: relative;
+            animation: modalIn 0.2s ease-out;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-close {
+            position: absolute;
+            top: 18px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal-subject-tag {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .modal-book-title {
+            font-size: 19px;
+            font-weight: 800;
+            color: #f8fafc;
+            margin-bottom: 6px;
+        }
+        .modal-book-hours {
+            font-size: 13px;
+            color: #38bdf8;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        .modal-book-desc {
+            background: #0f172a;
+            border: 1px solid #1f2937;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .modal-book-points {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+        .modal-book-points li { margin-left: 18px; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 상단 헤더 -->
+        <div class="hero">
+            <span class="badge-aws">AWS DATACENTER OPERATIONS</span>
+            <h1>AX과정: Amazon DCO 엔지니어 양성 교육</h1>
+            <p class="subtitle">
+                클라우드 인프라의 심장인 데이터센터(DC)를 지탱하는 <strong>DCO 엔지니어</strong> 실무 교육 대시보드입니다. (한국폴리텍대학 x Amazon DCO)
+            </p>
+        </div>
+
+        <!-- 🌟 메인 1: 오늘 들을 수업 & 전체 남은 교육 시간 -->
+        <div class="dashboard-row">
+            <!-- 오늘 들을 수업 -->
+            <div class="dash-card">
+                <div class="dash-header">
+                    <div class="dash-title">
+                        <span>📌 오늘의 학습 일정</span>
+                    </div>
+                    <span class="date-badge">2026-11-17 (화)</span>
+                </div>
+                <div class="today-schedule-list" id="todayScheduleList">
+                    <!-- JS에서 렌더링 -->
+                </div>
+            </div>
+
+            <!-- 전체 남은 교육 시간 -->
+            <div class="dash-card">
+                <div class="dash-header">
+                    <div class="dash-title">
+                        <span>⏳ 전체 교육 진행 현황</span>
+                    </div>
+                </div>
+                <div class="hours-box">
+                    <div class="hours-desc">수료까지 남은 총 교육 시간</div>
+                    <div class="hours-num" id="remainingHours">189<span style="font-size: 18px; font-weight: 600; color: #94a3b8;"> 시간</span></div>
+                    <div class="hours-desc" id="progressStatusText">전체 240시간 중 51시간 이수 완료 (21.3%)</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressFill" style="width: 21.3%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🌟 메인 2: 구글 시트 기반 과목별 배정/남은 시간 현황판 -->
+        <div class="subject-hours-section">
+            <div class="section-header-wrap">
+                <div class="sec-title">
+                    <span>📊 과목별 교육 시간 이수 & 잔여 현황</span>
+                </div>
+                <span style="font-size: 12px; color: #64748b;">(클릭 시 해당 과목 공식 제공 교재 안내)</span>
+            </div>
+            <div class="subject-grid" id="subjectHoursGrid">
+                <!-- JS에서 동적 주입 -->
+            </div>
+        </div>
+
+        <!-- 🌟 메인 3: DCO 직무 핵심 지식 캐러셀 (카드 넘기기) -->
+        <div class="carousel-section">
+            <div class="carousel-header">
+                <div class="sec-title">
+                    <span>💡 DCO 직무에서 알아야 할 핵심 지식 카드</span>
+                    <span id="carouselPageIndicator" style="font-size: 12px; color: #38bdf8; margin-left: 8px;">(1 / 6)</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="carousel-nav-btn" onclick="prevKnowledgeCard()">‹</button>
+                    <button class="carousel-nav-btn" onclick="nextKnowledgeCard()">›</button>
+                </div>
+            </div>
+            <div class="carousel-content" id="carouselContent">
+                <!-- JS에서 동적 렌더링 -->
+            </div>
+            <div class="carousel-dots" id="carouselDots">
+                <!-- JS에서 동적 렌더링 -->
+            </div>
+        </div>
+
+        <!-- 전체 시간표 영역 -->
+        <div class="section-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <div class="sec-title">📅 주차별 종합 시간표 (1~6주차)</div>
+                <div style="font-size: 12px; color: #38bdf8; font-weight: 600;">
+                    💡 과목 클릭 시 구글 시트 등록 공식 교재 안내
+                </div>
+            </div>
+
+            <div class="week-selector">
+                <button class="week-pill" onclick="renderWeek(1)">1주차 (11/09 ~ 11/13)</button>
+                <button class="week-pill active" onclick="renderWeek(2)">2주차 (11/16 ~ 11/20) [현재]</button>
+                <button class="week-pill" onclick="renderWeek(3)">3주차 (11/23 ~ 11/27)</button>
+                <button class="week-pill" onclick="renderWeek(4)">4주차 (11/30 ~ 12/04)</button>
+                <button class="week-pill" onclick="renderWeek(5)">5주차 (12/07 ~ 12/11)</button>
+                <button class="week-pill" onclick="renderWeek(6)">6주차 (12/14 ~ 12/18)</button>
+            </div>
+
+            <div class="table-responsive">
+                <table id="scheduleTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 85px;">시간</th>
+                            <th>월요일</th>
+                            <th>화요일</th>
+                            <th>수요일</th>
+                            <th>목요일</th>
+                            <th>금요일</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleBody">
+                        <!-- JS에서 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 공식 교재 팝업 모달 -->
+    <div class="modal-overlay" id="bookModal" onclick="closeModal(event)">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <span class="modal-subject-tag" id="mSubjectTag">과목명</span>
+            <div class="modal-book-title" id="mBookTitle">공식 교재명</div>
+            <div class="modal-book-hours" id="mBookHours">총 교육 시간: 40시간</div>
+            <div class="modal-book-desc" id="mBookDesc">책 소개 내용</div>
+            <div style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;">🎯 DCO 실무 연계 & 평가 포인트</div>
+            <ul class="modal-book-points" id="mBookPoints"></ul>
+        </div>
+    </div>
+
+    <script>
+        // 📚 구글 시트 '기본 안내사항' 및 '평가 안내' 탭에 정확히 명시된 공식 교재 및 시수 데이터
+        const officialSubjectData = {
+            "Datacenter Overview": {
+                totalHours: 32,
+                completedHours: 32, // 1주차 월~목 완료
+                book: "데이터센터 개요 및 운영 표준 교재 (과정 자체 교재 제공)",
+                author: "Amazon DCO 교육팀 / 한국폴리텍대학",
+                desc: "하이퍼스케일 데이터센터의 전력(UPS/PDU), 냉각 공조(HVAC), 랙 아키텍처 및 안전 수칙을 다루는 입문 핵심 과정입니다.",
+                points: ["11/10(화), 11/12(금) 2회 지필 평가 진행 완료", "Tier 분류 및 이중화 인프라 이해"]
+            },
+            "Computer Hardware": {
+                totalHours: 40,
+                completedHours: 0,
+                book: "혼자 공부하는 컴퓨터구조 + 운영체제",
+                author: "강민철 저 / 한빛미디어",
+                desc: "구글 시트 공식 등록 교재. CPU, 메모리(ECC DIMM), 버스 아키텍처, 스토리지 컨트롤러 등 엔터프라이즈 서버 분해 및 장애 진단의 기본이 되는 필독서입니다.",
+                points: ["NCS기반 실습 상시평가 과목", "불량 RAM 교체 및 디스크 핫스왑 트러블슈팅 실습"]
+            },
+            "Network Fundamentals": {
+                totalHours: 20,
+                completedHours: 0,
+                book: "컴퓨터네트워크 (와이어샤크, 패킷트레이서와 함께하는)",
+                author: "한국폴리텍 제공 공식 교재",
+                desc: "구글 시트 공식 등록 교재. OSI 7계층, IP 서브네팅, TCP/UDP 및 패킷 캡처 도구를 활용한 네트워크 통신 흐름 분석을 다룹니다.",
+                points: ["NCS기반 실습 상시평가 과목", "패킷트레이서 실습 및 Wireshark 패킷 분석"]
+            },
+            "Operating Systems": {
+                totalHours: 40,
+                completedHours: 8, // 2주차 월요일 8시간 완료
+                book: "이것이 우분투 리눅스다",
+                author: "우재남 저 / 한빛미디어",
+                desc: "구글 시트 공식 등록 교재. AWS 데이터센터 서버 운영 환경의 기반이 되는 우분투 리눅스 설치, 스토리지 파티셔닝(LVM, RAID), 사용자 권한 및 데몬 관리를 체득합니다.",
+                points: ["NCS기반 실습 상시평가 과목", "리눅스 CLI 트러블슈팅 및 로그 분석"]
+            },
+            "Routing and Switching": {
+                totalHours: 32,
+                completedHours: 0,
+                book: "후니의 쉽게 쓴 시스코 네트워킹",
+                author: "진강훈 저 / 성안당",
+                desc: "구글 시트 공식 등록 교재. 데이터센터 랙 내부 ToR(Top of Rack) 스위치, VLAN 트렁킹, LACP 본딩 및 라우팅 프로토콜 실무를 학습합니다.",
+                points: ["NCS기반 실습 상시평가 과목", "스위치 포트 점검 및 케이블 연결 트러블슈팅"]
+            },
+            "Optical Communication": {
+                totalHours: 20,
+                completedHours: 0, // 오늘 오후 시작 예정
+                book: "광통신실습 (Optical Communication System)",
+                author: "한국폴리텍 제공 공식 교재",
+                desc: "구글 시트 공식 등록 교재. 100G/400G 광트랜시버(SFP, QSFP) 규격, 싱글/멀티모드 광선로 특성, 광 파워미터(OPM) 감도 측정 및 광커넥터 클리닝 실습 교재입니다.",
+                points: ["06호관 2층 안전진단계측실 실습", "광 파워 측정 및 단면 검사기(Scope) 취급 실무"]
+            },
+            "Scripting and Automation": {
+                totalHours: 40,
+                completedHours: 3, // 오늘 화요일 오전 3시간 완료
+                book: "AI 에이전트 개발 완벽 입문",
+                author: "위키북스",
+                desc: "구글 시트 공식 등록 교재. 수백 대의 서버를 일괄 진단하고 하드웨어 상태를 자동 수집하는 Bash 및 Python 스크립트 작성 기법을 다룹니다.",
+                points: ["NCS기반 실습 상시평가 과목", "반복적인 DC 운영 업무 원클릭 스크립트 제작"]
+            },
+            "생성형AI 활용": {
+                totalHours: 16,
+                completedHours: 8, // 1주차 금요일 8시간 완료
+                book: "Amazon Bedrock 실전 생성형 AI 앱 개발",
+                author: "정보문화사",
+                desc: "구글 시트 공식 등록 교재. AWS 클라우드의 Amazon Bedrock을 활용하여 DCO 장애 티켓 분석 보조 및 자동화 스크립트 생성을 실습합니다.",
+                points: ["06호관 2층 AI프로그램실 실습", "DCO 업무 생산성 극대화 AI 워크플로우"]
+            }
+        };
+
+        // 💡 DCO 직무 핵심 지식 캐러셀 데이터 (넘겨볼 수 있는 6대 카드)
+        const dcoKnowledgeCards = [
+            {
+                badge: "오늘 집중 과목 #1",
+                badgeColor: "#a855f7",
+                icon: "⚡",
+                title: "스크립트 자동화 (Scripting & Automation)",
+                desc: "수천 대의 서버 랙을 관리하는 AWS DCO 현장에서는 일일이 콘솔을 두드리지 않습니다:",
+                items: [
+                    "<strong>대규모 하드웨어 인벤토리 수집:</strong> Bash 한 줄로 CPU 코어 수, RAM 용량 및 시리얼 번호를 일괄 파싱하여 자산 관리 시스템에 등록합니다.",
+                    "<strong>디스크 건전성 점검 자동화:</strong> `smartctl` 명령어를 주기적으로 실행하여 배드 섹터 발생 시 자동으로 지원 티켓을 생성합니다.",
+                    "<strong>PXE 무인 네트워크 부팅:</strong> 신규 랙 구축 시 서버 전원만 켜면 자동으로 OS가 프로비저닝되도록 킥스타트(Kickstart) 스크립트를 작성합니다."
+                ]
+            },
+            {
+                badge: "오늘 집중 과목 #2",
+                badgeColor: "#06b6d4",
+                icon: "💡",
+                title: "광통신 시스템 (Optical Communication)",
+                desc: "DC 백본망을 이루는 초고속 광선로 및 트랜시버 모듈을 다루는 필수 실무입니다:",
+                items: [
+                    "<strong>싱글모드(OS2) vs 멀티모드(OM4):</strong> DC 내부 단거리 랙 간 연결은 아쿠아색 멀티모드, 데이터센터 간 장거리 연결은 노란색 싱글모드를 사용합니다.",
+                    "<strong>광 파워미터(OPM) 계측:</strong> 광모듈 체결 전 Tx(송신)/Rx(수신) 광 파워 레벨(dBm)을 측정하여 감쇄 손실 여부를 판정합니다.",
+                    "<strong>광 커넥터(LC/MPO) 클리닝:</strong> 미세한 먼지 입자 하나로도 400G 링크 플랩이 발생하므로 반드시 광 스코프로 단면을 검사하고 원클릭 클리너로 세척합니다."
+                ]
+            },
+            {
+                badge: "하드웨어 실무",
+                badgeColor: "#f59e0b",
+                icon: "🖥️",
+                title: "서버 하드웨어 장애 진단 (Hardware Troubleshooting)",
+                desc: "현장 Floor에서 하드웨어 결함 티켓 발생 시 신속히 부품을 교체하는 핵심 절차입니다:",
+                items: [
+                    "<strong>메모리(RAM) 결함 격리:</strong> SEL 로그를 확인하여 Correctable/Uncorrectable 에러가 발생한 정확한 DIMM 소켓 위치를 찾아 교체합니다.",
+                    "<strong>스토리지 핫스왑(Hot-swap):</strong> RAID 어레이에서 결함 디스크를 무중단 상태로 분리하고 신규 드라이브 장착 후 리빌딩 상태를 감시합니다.",
+                    "<strong>PSU 전원 이중화:</strong> A/B 전원 피드 중 고장 난 파워서플라이를 서비스 중단 없이 교체하고 부하 밸런스를 확인합니다."
+                ]
+            },
+            {
+                badge: "네트워크 실무",
+                badgeColor: "#3b82f6",
+                icon: "🌐",
+                title: "ToR 스위치 및 랙 케이블링 (Rack & Network)",
+                desc: "서버 랙(42U)과 데이터센터 패브릭 네트워크를 물리적으로 결합하는 네트워크 지식입니다:",
+                items: [
+                    "<strong>ToR(Top of Rack) 구조:</strong> 랙 상단에 위치한 스위치와 각 서버 간 이중화 포트 연결(LACP 본딩)을 수행합니다.",
+                    "<strong>케이블 드레싱(Cable Dressing):</strong> 랙 후면의 공기 순환(Airflow)을 방해하지 않도록 벨크로 타이로 깔끔하게 정리 배선합니다.",
+                    "<strong>포트 플래핑(Port Flapping) 해결:</strong> 케이블 꺾임이나 트랜시버 접촉 불량으로 인해 링크가 깜빡거리는 장애를 신속히 진단합니다."
+                ]
+            },
+            {
+                badge: "OS & 시스템",
+                badgeColor: "#10b981",
+                icon: "🐧",
+                title: "리눅스 OS & 시스템 엔지니어링 (Linux OS)",
+                desc: "물리 서버를 원격에서 진단하고 제어하기 위한 필수 리눅스 시스템 역량입니다:",
+                items: [
+                    "<strong>하드웨어 커널 로그 추적:</strong> `dmesg -T | grep -i error`, `lspci -nnk`, `lscpu`로 메인보드 인식 상태를 점검합니다.",
+                    "<strong>네트워크 상태 진단:</strong> `ip a`, `ss -tulnp`, `traceroute`, `tcpdump`를 활용하여 서버 인터페이스 활성화 및 패킷 누수를 확인합니다.",
+                    "<strong>스토리지 볼륨 관리:</strong> LVM(Logical Volume Manager)을 통한 용량 증설 및 파일 시스템 무결성 검사를 수행합니다."
+                ]
+            },
+            {
+                badge: "안전 & 프로세스",
+                badgeColor: "#ef4444",
+                icon: "🛡️",
+                title: "DC 안전(EHS) & 보안 규정 (Safety & Security)",
+                desc: "AWS 글로벌 데이터센터 현장 진입 및 작업 시 절대 타협하지 않는 철칙입니다:",
+                items: [
+                    "<strong>LOTO(Lockout/Tagout):</strong> 전기 설비나 랙 전원 차단 작업 시 임의 재가동을 막기 위해 물리 자물쇠와 경고 태그를 부착합니다.",
+                    "<strong>미디어 파기(Media Destruction):</strong> 폐기되는 HDD/SSD는 데이터 유출 방지를 위해 현장에서 100% 천공 또는 파쇄 처리합니다.",
+                    "<strong>SLA & 심각도(Severity) 준수:</strong> 접수된 장애 티켓의 등급에 따라 정해진 시간 내에 현장 조치를 완료하고 작업 로그를 기록합니다."
+                ]
+            }
+        ];
+
+        let currentCardIndex = 0;
+
+        function renderKnowledgeCard(index) {
+            currentCardIndex = index;
+            const c = dcoKnowledgeCards[index];
+            const contentEl = document.getElementById('carouselContent');
+            const indicatorEl = document.getElementById('carouselPageIndicator');
+
+            indicatorEl.textContent = `(${index + 1} / ${dcoKnowledgeCards.length})`;
+
+            let itemsHtml = c.items.map(item => `<li>${item}</li>`).join('');
+            contentEl.innerHTML = `
+                <span class="c-badge" style="background: ${c.badgeColor}22; color: ${c.badgeColor}; border: 1px solid ${c.badgeColor}44;">
+                    ${c.badge}
+                </span>
+                <div class="c-title">
+                    <span>${c.icon}</span>
+                    <span>${c.title}</span>
+                </div>
+                <div class="c-desc">
+                    <p>${c.desc}</p>
+                    <ul>${itemsHtml}</ul>
+                </div>
+            `;
+
+            // 도트 갱신
+            const dotsEl = document.getElementById('carouselDots');
+            dotsEl.innerHTML = '';
+            dcoKnowledgeCards.forEach((_, i) => {
+                dotsEl.innerHTML += `<div class="dot ${i === index ? 'active' : ''}" onclick="renderKnowledgeCard(${i})"></div>`;
+            });
+        }
+
+        function prevKnowledgeCard() {
+            let nextIdx = currentCardIndex - 1;
+            if (nextIdx < 0) nextIdx = dcoKnowledgeCards.length - 1;
+            renderKnowledgeCard(nextIdx);
+        }
+
+        function nextKnowledgeCard() {
+            let nextIdx = (currentCardIndex + 1) % dcoKnowledgeCards.length;
+            renderKnowledgeCard(nextIdx);
+        }
+
+        // 과목별 남은 시간 현황판 렌더링
+        function renderSubjectHoursGrid() {
+            const grid = document.getElementById('subjectHoursGrid');
+            grid.innerHTML = '';
+
+            for (const [subjName, info] of Object.entries(officialSubjectData)) {
+                const rem = info.totalHours - info.completedHours;
+                const pct = ((info.completedHours / info.totalHours) * 100).toFixed(0);
+
+                const card = document.createElement('div');
+                card.className = 'subj-card';
+                card.onclick = () => openBookModal(subjName);
+                card.innerHTML = `
+                    <div class="subj-top">
+                        <span class="subj-name">${subjName}</span>
+                        <span class="subj-rem-badge">${rem > 0 ? `${rem}시간 남음` : '이수 완료 🎉'}</span>
+                    </div>
+                    <div class="subj-prog-bg">
+                        <div class="subj-prog-fill" style="width: ${pct}%; background: ${rem === 0 ? '#10b981' : '#38bdf8'};"></div>
+                    </div>
+                    <div class="subj-bottom">
+                        <span>총 ${info.totalHours}시간 배정</span>
+                        <span>${info.completedHours}h 완료 (${pct}%)</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            }
+        }
+
+        // 오늘 수업 섹션 초기화
+        function initTodaySection() {
+            const listEl = document.getElementById('todayScheduleList');
+            listEl.innerHTML = `
+                <div class="today-item" onclick="openBookModal('Scripting and Automation')">
+                    <div class="today-time">09:00 - 12:00</div>
+                    <div class="today-subject badge-auto">
+                        오전: Scripting and Automation
+                        <span style="font-size: 11px; color: #94a3b8; font-weight: normal; margin-left: 6px;">(3시간)</span>
+                    </div>
+                    <div class="today-room">함월관 4층 안전시스템실</div>
+                </div>
+                <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default;">
+                    <div class="today-time">12:00 - 13:00</div>
+                    <div class="today-subject" style="color: #94a3b8;">🍱 점심 식사 (중식)</div>
+                    <div class="today-room" style="color: #64748b; background: rgba(255,255,255,0.05);">구내식당</div>
+                </div>
+                <div class="today-item" onclick="openBookModal('Optical Communication')" style="border-left-color: #06b6d4;">
+                    <div class="today-time">13:00 - 18:00</div>
+                    <div class="today-subject badge-optic">
+                        오후: Optical Communication
+                        <span style="font-size: 11px; color: #94a3b8; font-weight: normal; margin-left: 6px;">(5시간)</span>
+                    </div>
+                    <div class="today-room">06호관 2층 안전진단계측실</div>
+                </div>
+            `;
+        }
+
+        // 시간표 렌더링
+        const scheduleData = {
+            1: {
+                dates: ["11/09 (월)", "11/10 (화)", "11/11 (수)", "11/12 (목)", "11/13 (금)"],
+                am: ["Datacenter Overview", "Datacenter Overview", "Datacenter Overview", "Datacenter Overview", "생성형AI 활용"],
+                pm: ["Datacenter Overview", "Datacenter Overview", "Datacenter Overview", "Datacenter Overview", "생성형AI 활용"]
+            },
+            2: {
+                dates: ["11/16 (월)", "11/17 (화)", "11/18 (수)", "11/19 (목)", "11/20 (금)"],
+                am: ["Operating Systems", "Scripting and Automation", "Scripting and Automation", "Operating Systems", "Scripting and Automation"],
+                pm: ["Operating Systems", "Optical Communication", "Scripting and Automation", "Operating Systems", "Routing and Switching"]
+            },
+            3: {
+                dates: ["11/23 (월)", "11/24 (화)", "11/25 (수)", "11/26 (목)", "11/27 (금)"],
+                am: ["Scripting and Automation", "Operating Systems", "Network Fundamentals", "생성형AI 활용", "Optical Communication"],
+                pm: ["Scripting and Automation", "Operating Systems", "Network Fundamentals", "Computer Hardware", "Routing and Switching"]
+            },
+            4: {
+                dates: ["11/30 (월)", "12/01 (화)", "12/02 (수)", "12/03 (목)", "12/04 (금)"],
+                am: ["Operating Systems", "생성형AI 활용", "Network Fundamentals", "Computer Hardware", "Computer Hardware"],
+                pm: ["Operating Systems", "Optical Communication", "Network Fundamentals", "Computer Hardware", "Routing and Switching"]
+            },
+            5: {
+                dates: ["12/07 (월)", "12/08 (화)", "12/09 (수)", "12/10 (목)", "12/11 (금)"],
+                am: ["Scripting and Automation", "Operating Systems", "Routing and Switching", "Computer Hardware", "Optical Communication"],
+                pm: ["Scripting and Automation", "Operating Systems", "Optical Communication", "Computer Hardware", "Routing and Switching"]
+            },
+            6: {
+                dates: ["12/14 (월)", "12/15 (화)", "12/16 (수)", "12/17 (목)", "12/18 (금)"],
+                am: ["Scripting and Automation", "Computer Hardware", "Computer Hardware", "Routing and Switching", "Computer Hardware"],
+                pm: ["Scripting and Automation", "Routing and Switching", "Routing and Switching", "Network Fundamentals", "Computer Hardware"]
+            }
+        };
+
+        function getSubjectClass(name) {
+            if (name.includes("Hardware")) return "badge-hw";
+            if (name.includes("Network") || name.includes("Routing")) return "badge-net";
+            if (name.includes("Operating")) return "badge-os";
+            if (name.includes("Scripting")) return "badge-auto";
+            if (name.includes("AI")) return "badge-ai";
+            if (name.includes("Optical")) return "badge-optic";
+            return "";
+        }
+
+        function renderWeek(weekNum) {
+            document.querySelectorAll('.week-pill').forEach((btn, idx) => {
+                btn.classList.toggle('active', idx + 1 === weekNum);
+            });
+
+            const data = scheduleData[weekNum];
+            const tbody = document.getElementById('scheduleBody');
+            tbody.innerHTML = '';
+
+            const headerCells = document.querySelectorAll('#scheduleTable thead th');
+            data.dates.forEach((d, i) => {
+                headerCells[i + 1].textContent = d;
+            });
+
+            // 오전 3시간
+            const amTimes = ["09:00 - 10:00", "10:00 - 11:00", "11:00 - 12:00"];
+            amTimes.forEach(t => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `<td class="col-time">${t}</td>`;
+                data.am.forEach(subj => {
+                    tr.innerHTML += `
+                        <td>
+                            <div class="subject-cell" onclick="openBookModal('${subj}')">
+                                <div class="subject-name ${getSubjectClass(subj)}">${subj}</div>
+                            </div>
+                        </td>`;
+                });
+                tbody.appendChild(tr);
+            });
+
+            // 점심
+            let lunchTr = document.createElement('tr');
+            lunchTr.innerHTML = `
+                <td class="col-time">12:00 - 13:00</td>
+                <td colspan="5" class="col-lunch">🍱 점심 식사 (중식)</td>
+            `;
+            tbody.appendChild(lunchTr);
+
+            // 오후 5시간
+            const pmTimes = ["13:00 - 14:00", "14:00 - 15:00", "15:00 - 16:00", "16:00 - 17:00", "17:00 - 18:00"];
+            pmTimes.forEach(t => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `<td class="col-time">${t}</td>`;
+                data.pm.forEach(subj => {
+                    tr.innerHTML += `
+                        <td>
+                            <div class="subject-cell" onclick="openBookModal('${subj}')">
+                                <div class="subject-name ${getSubjectClass(subj)}">${subj}</div>
+                            </div>
+                        </td>`;
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 공식 교재 팝업 모달 열기
+        function openBookModal(subjectName) {
+            // 이름 매핑
+            let key = subjectName;
+            if (subjectName.includes("Network")) key = "Network Fundamentals";
+            if (subjectName.includes("Optical")) key = "Optical Communication";
+
+            const info = officialSubjectData[key] || {
+                totalHours: 30,
+                completedHours: 0,
+                book: `${subjectName} 교육 교재`,
+                author: "폴리텍 / AWS 교육팀",
+                desc: `${subjectName} 과목의 공식 교재입니다.`,
+                points: ["출결 및 실습 참여"]
+            };
+
+            const tagEl = document.getElementById('mSubjectTag');
+            tagEl.textContent = key;
+            tagEl.style.background = "#2563eb22";
+            tagEl.style.color = "#38bdf8";
+
+            document.getElementById('mBookTitle').textContent = `📖 ${info.book}`;
+            document.getElementById('mBookHours').textContent = `총 배정 시간: ${info.totalHours}시간 (${info.completedHours}시간 완료 / ${info.totalHours - info.completedHours}시간 남음)`;
+            document.getElementById('mBookDesc').textContent = `${info.desc} (출처: 구글 시트 기본안내사항 교재 목록)`;
+
+            const ptsEl = document.getElementById('mBookPoints');
+            ptsEl.innerHTML = '';
+            info.points.forEach(p => {
+                ptsEl.innerHTML += `<li>${p}</li>`;
+            });
+
+            document.getElementById('bookModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('bookModal').classList.remove('active');
+        }
+
+        // 초기 실행
+        initTodaySection();
+        renderSubjectHoursGrid();
+        renderKnowledgeCard(0);
+        renderWeek(2);
+    </script>
+</body>
+</html>
