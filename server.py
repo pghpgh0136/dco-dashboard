@@ -19,7 +19,7 @@ for p in env_paths:
         break
 
 api_key = os.getenv("GEMINI_API_KEY")
-model_name = os.getenv("GEMINI_MODEL") or "gemini-3.5-flash-lite"
+model_name = os.getenv("GEMINI_MODEL") or "gemini-3.8-flash"
 
 SYSTEM_INSTRUCTION = """
 당신은 데이터센터 인프라 및 서버 룸 운영을 총괄하는 숙련된 시니어 DCO(Data Center Operations) 엔지니어 어시스턴트입니다.
@@ -28,27 +28,47 @@ SYSTEM_INSTRUCTION = """
 전문적이고 친절하며 안전 규정을 최우선으로 하는 간결하고 명확한 조언을 제공하세요.
 """
 
+# 현재 실제 정상 작동하는 최신 Gemini 모델 우선순위
+CANDIDATE_MODELS = [
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3.8-flash"
+]
+
 def generate_gemini(prompt_text, system_instruction=None):
     if not api_key:
         raise Exception(".env 파일에 GEMINI_API_KEY가 설정되지 않았습니다.")
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt_text}]}],
-        "generationConfig": {"temperature": 0.7}
-    }
-    if system_instruction:
-        payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+    last_error = None
+    # 503 또는 일시 장애 시 다음 모델로 즉시 자동 시도
+    for model in CANDIDATE_MODELS:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt_text}]}],
+                "generationConfig": {"temperature": 0.7}
+            }
+            if system_instruction:
+                payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
 
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        res_data = json.loads(resp.read().decode("utf-8"))
-        raw = res_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-        return raw.replace("```json", "").replace("```", "").strip()
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                res_data = json.loads(resp.read().decode("utf-8"))
+                raw = res_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                return raw.replace("```json", "").replace("```", "").strip()
+        except urllib.error.HTTPError as e:
+            last_error = e
+            # 503(Service Unavailable) 또는 404/429인 경우 다른 모델로 재시도
+            continue
+        except Exception as e:
+            last_error = e
+            continue
+
+    raise Exception(f"Gemini API 오류 ({last_error})")
 
 class DCODashboardHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):

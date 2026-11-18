@@ -2756,8 +2756,13 @@
             msgsBox.appendChild(loadingEl);
             msgsBox.scrollTop = msgsBox.scrollHeight;
 
+            // 로컬 서버 URL 자동 결정 (file:// 로 열어도 localhost:8080 으로 통신)
+            const targetUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? '/api/chat'
+                : 'http://localhost:8080/api/chat';
+
             try {
-                const res = await fetch('/api/chat', {
+                const res = await fetch(targetUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: msg })
@@ -2776,10 +2781,39 @@
                 }
                 msgsBox.appendChild(botEl);
             } catch (err) {
+                // 만약 백엔드 서버가 안 켜져있거나 GitHub Pages일 경우 브라우저 직접 호출 시도
+                console.warn('Local chat server error, checking direct key:', err);
+                let apiKey = localStorage.getItem('dco_gemini_api_key');
+                if (apiKey) {
+                    try {
+                        const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+                        const directRes = await fetch(directUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: msg }] }],
+                                systemInstruction: {
+                                    parts: [{ text: "당신은 데이터센터(DCO) 시니어 엔지니어 어시스턴트입니다. 친절하고 전문적으로 한국어로 답변하세요." }]
+                                }
+                            })
+                        });
+                        const directData = await directRes.json();
+                        msgsBox.removeChild(loadingEl);
+                        const botEl = document.createElement('div');
+                        botEl.className = 'chat-msg bot';
+                        botEl.textContent = directData.candidates?.[0]?.content?.parts?.[0]?.text || '답변을 생성하지 못했습니다.';
+                        msgsBox.appendChild(botEl);
+                        msgsBox.scrollTop = msgsBox.scrollHeight;
+                        return;
+                    } catch (e) {
+                        console.error('Direct Gemini call failed:', e);
+                    }
+                }
+
                 msgsBox.removeChild(loadingEl);
                 const botEl = document.createElement('div');
                 botEl.className = 'chat-msg bot';
-                botEl.textContent = '⚠️ 서버 통신 오류가 발생했습니다. 백엔드 서버(server.py)가 실행 중인지 확인해 주세요.';
+                botEl.textContent = '⚠️ 서버 통신 오류가 발생했습니다. 백엔드 서버(server.py)가 실행 중인지 확인해 주세요. (http://localhost:8080)';
                 msgsBox.appendChild(botEl);
             }
             msgsBox.scrollTop = msgsBox.scrollHeight;
@@ -2824,7 +2858,7 @@
                 }
             }
 
-            const model = 'gemini-3.5-flash-lite';
+            const model = 'gemini-3.1-flash-lite';
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
             const promptText = promptGenFallback(promptFallbackTopic);
             const res = await fetch(url, {
@@ -2994,8 +3028,13 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             msgsBox.appendChild(loadingEl);
             msgsBox.scrollTop = msgsBox.scrollHeight;
 
+            // 로컬 서버 URL 자동 결정 (file:// 로 열어도 localhost:8080 으로 통신)
+            const targetUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? '/api/chat'
+                : 'http://localhost:8080/api/chat';
+
             try {
-                const res = await fetch('/api/chat', {
+                const res = await fetch(targetUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: msg })
@@ -3014,10 +3053,39 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 }
                 msgsBox.appendChild(botEl);
             } catch (err) {
+                // 만약 백엔드 서버가 안 켜져있거나 GitHub Pages일 경우 브라우저 직접 호출 시도
+                console.warn('Local chat server error, checking direct key:', err);
+                let apiKey = localStorage.getItem('dco_gemini_api_key');
+                if (apiKey) {
+                    try {
+                        const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+                        const directRes = await fetch(directUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: msg }] }],
+                                systemInstruction: {
+                                    parts: [{ text: "당신은 데이터센터(DCO) 시니어 엔지니어 어시스턴트입니다. 친절하고 전문적으로 한국어로 답변하세요." }]
+                                }
+                            })
+                        });
+                        const directData = await directRes.json();
+                        msgsBox.removeChild(loadingEl);
+                        const botEl = document.createElement('div');
+                        botEl.className = 'chat-msg bot';
+                        botEl.textContent = directData.candidates?.[0]?.content?.parts?.[0]?.text || '답변을 생성하지 못했습니다.';
+                        msgsBox.appendChild(botEl);
+                        msgsBox.scrollTop = msgsBox.scrollHeight;
+                        return;
+                    } catch (e) {
+                        console.error('Direct Gemini call failed:', e);
+                    }
+                }
+
                 msgsBox.removeChild(loadingEl);
                 const botEl = document.createElement('div');
                 botEl.className = 'chat-msg bot';
-                botEl.textContent = '⚠️ 서버 통신 오류가 발생했습니다. 백엔드 서버(server.py)가 실행 중인지 확인해 주세요.';
+                botEl.textContent = '⚠️ 서버 통신 오류가 발생했습니다. 백엔드 서버(server.py)가 실행 중인지 확인해 주세요. (http://localhost:8080)';
                 msgsBox.appendChild(botEl);
             }
             msgsBox.scrollTop = msgsBox.scrollHeight;
