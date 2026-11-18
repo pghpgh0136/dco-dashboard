@@ -1767,6 +1767,178 @@
             from { opacity: 0; transform: translateY(4px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* 📱 모바일 반응형 전용 스타일 (768px & 480px) */
+        @media (max-width: 768px) {
+            body {
+                padding: 12px 10px;
+            }
+
+            /* 히어로 배너 모바일 레이아웃 */
+            .hero {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 18px 16px;
+                gap: 16px;
+                border-radius: 14px;
+                margin-bottom: 14px;
+            }
+            .hero-right {
+                align-items: flex-start;
+                width: 100%;
+                border-top: 1px dashed var(--border2);
+                padding-top: 12px;
+                gap: 8px;
+            }
+            .weather-mini-row {
+                justify-content: flex-start;
+                width: 100%;
+            }
+            .weather-mini-tip {
+                max-width: 100%;
+            }
+            .live-clock {
+                font-size: 20px;
+                letter-spacing: 1px;
+            }
+            .live-clock-label {
+                text-align: left;
+            }
+            h1 {
+                font-size: 20px;
+                line-height: 1.3;
+            }
+            .subtitle {
+                font-size: 13px;
+            }
+
+            /* 메인 카드 및 간격 컴팩트화 */
+            .dash-card, .section-box, .subject-hours-section, .hub-tabs-container, .overall-progress-card {
+                padding: 14px;
+                border-radius: 12px;
+            }
+            .main-wide-grid {
+                gap: 14px;
+            }
+            .dashboard-row-split {
+                gap: 12px;
+            }
+
+            /* 전체 진행률 카드 폰트 조정 */
+            .overall-prog-percent {
+                font-size: 26px;
+            }
+            .overall-prog-hours {
+                font-size: 13px;
+            }
+
+            /* 허브 탭 바 스크롤 가독성 */
+            .hub-tab-bar {
+                gap: 6px;
+                padding-bottom: 8px;
+                margin-bottom: 12px;
+                -webkit-overflow-scrolling: touch;
+            }
+            .hub-tab-btn {
+                padding: 6px 11px;
+                font-size: 12px;
+            }
+
+            /* 모달 팝업 모바일 최적화 */
+            .modal-box {
+                padding: 18px 16px;
+                border-radius: 14px;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            .modal-book-title {
+                font-size: 17px;
+            }
+
+            /* 플로팅 버튼 (FAB) 모바일 최적화: 크기 축소 및 간섭 방지 */
+            .chat-fab {
+                width: 46px;
+                height: 46px;
+                font-size: 20px;
+                bottom: 18px;
+                right: 16px;
+            }
+            .theme-floating-fab {
+                width: 46px;
+                height: 46px;
+                font-size: 18px;
+                bottom: 18px;
+                right: 70px;
+            }
+
+            /* 모바일 챗봇 창 전체화면/바텀시트 느낌으로 최적화 */
+            .chat-window {
+                right: 8px;
+                left: 8px;
+                width: auto;
+                bottom: 74px;
+                max-width: none;
+                height: calc(100vh - 120px);
+                max-height: 560px;
+                border-radius: 14px;
+            }
+
+            /* 시간표 테이블 모바일 폰트 및 패딩 조정 */
+            table {
+                font-size: 11.5px;
+            }
+            th, td {
+                padding: 6px 4px;
+            }
+            .col-time {
+                width: 65px;
+                font-size: 11px;
+            }
+            .subject-cell {
+                padding: 6px 6px !important;
+            }
+            .subject-name {
+                font-size: 11px;
+            }
+            .subject-room-tag {
+                font-size: 10px;
+            }
+            /* 모바일 터치 시 :after 교재 말풍선이 겹치는 현상 완화 */
+            .subject-cell::after {
+                display: none !important;
+            }
+
+            /* 퀴즈 옵션 1열 배치 */
+            .quiz-options-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 8px 6px;
+            }
+            .hero {
+                padding: 14px 12px;
+            }
+            h1 {
+                font-size: 18px;
+            }
+            .dash-card, .section-box, .subject-hours-section, .hub-tabs-container, .overall-progress-card {
+                padding: 12px 10px;
+            }
+            .dash-title, .sec-title {
+                font-size: 14px;
+            }
+            .btn-view-full-schedule {
+                font-size: 10px;
+                padding: 3px 8px;
+            }
+            .chat-window {
+                bottom: 70px;
+                height: calc(100vh - 90px);
+            }
+        }
 </style>
 </head>
 <body>
