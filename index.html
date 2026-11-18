@@ -78,26 +78,81 @@
         body.light .sec-title {
             color: #0f172a !important;
         }
+        /* 1) 탭 버튼 라이트 모드 가독성 극대화 */
         body.light .hub-tab-btn {
+            background: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
             color: #475569 !important;
         }
-        body.light .hub-tab-btn.active {
-            color: #0284c7 !important;
-            border-bottom-color: #0284c7 !important;
+        body.light .hub-tab-btn:hover {
+            background: #e2e8f0 !important;
+            color: #0f172a !important;
         }
-        body.light .memo-list-empty {
-            color: #64748b !important;
+        body.light .hub-tab-btn.active {
+            background: #0284c7 !important;
+            border-color: #0284c7 !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3) !important;
+        }
+
+        /* 2) 핵심 지식 캐러셀 라이트 모드 가독성 (타이틀/내용 진한 색상 강제) */
+        body.light .carousel-content {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06) !important;
+        }
+        body.light .c-title {
+            color: #0f172a !important;
+        }
+        body.light .c-desc {
+            color: #334155 !important;
+        }
+        body.light .c-desc p {
+            color: #1e293b !important;
+        }
+        body.light .c-desc li {
+            color: #334155 !important;
+        }
+
+        /* 3) 실무 퀴즈 라이트 모드 가독성 (문제, 선택지 글자 진한 색상) */
+        body.light .quiz-card-box {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06) !important;
         }
         body.light .quiz-question {
             color: #0f172a !important;
         }
-        body.light .quiz-option-btn {
-            background: #ffffff !important;
-            border-color: #cbd5e1 !important;
-            color: #1e293b !important;
+        body.light .quiz-opt-btn {
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
         }
-        body.light .quiz-option-btn:hover {
-            background: #f1f5f9 !important;
+        body.light .quiz-opt-btn span:first-child {
+            background: #e2e8f0 !important;
+            color: #0f172a !important;
+        }
+        body.light .quiz-opt-btn:hover:not(:disabled) {
+            background: #f0f9ff !important;
+            border-color: #0284c7 !important;
+            color: #0369a1 !important;
+        }
+        body.light .quiz-opt-btn:hover:not(:disabled) span:first-child {
+            background: #bae6fd !important;
+            color: #0369a1 !important;
+        }
+        body.light .quiz-opt-btn.correct {
+            background: #ecfdf5 !important;
+            border-color: #10b981 !important;
+            color: #047857 !important;
+        }
+        body.light .quiz-opt-btn.wrong {
+            background: #fef2f2 !important;
+            border-color: #ef4444 !important;
+            color: #b91c1c !important;
+        }
+        body.light .memo-list-empty {
+            color: #64748b !important;
         }
         body.light #hubPaneArch div[style*="background: var(--bg-card)"] {
             background: #ffffff !important;
