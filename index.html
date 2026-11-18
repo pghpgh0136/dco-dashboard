@@ -2033,10 +2033,16 @@
                     <div class="hub-tab-pane" id="hubPaneArch" style="display: none;">
                         <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
-                                <div class="sec-title" style="font-size: 14px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
-                                    <span>⚙️</span> 시스템 아키텍처 & 동작 원리 시각화
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="sec-title" style="font-size: 14px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                                        <span>⚙️</span> 시스템 아키텍처 & 동작 원리 시각화
+                                    </div>
+                                    <span style="font-size: 11px; color: var(--text-muted); background: var(--bg-row); padding: 2px 8px; border-radius: 12px;">Mermaid Engine</span>
                                 </div>
-                                <span style="font-size: 11px; color: var(--text-muted); background: var(--bg-row); padding: 2px 8px; border-radius: 12px;">Mermaid Engine</span>
+                                <button class="btn-return-home" onclick="returnToDashboardHome()" style="background: linear-gradient(135deg, #0284c7, #0ea5e9); color: #fff; border: 1px solid #38bdf8; padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35); transition: all 0.2s;">
+                                    <span>🏠</span>
+                                    <span>홈(대시보드)으로 돌아가기</span>
+                                </button>
                             </div>
 
                             <p style="font-size: 12.5px; color: var(--text-sub); line-height: 1.5; margin-bottom: 14px;">
@@ -3749,6 +3755,12 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
         }
 
         let activeHubTab = "card";
+
+        
+        /* 🏠 아키텍처 와이드 뷰에서 기본 홈 화면으로 복귀하는 함수 */
+        function returnToDashboardHome() {
+            switchHubTab("card");
+        }
 
         function switchHubTab(tabName) {
             const tabs = ["card", "quiz", "memo", "arch"];
