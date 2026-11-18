@@ -161,6 +161,40 @@
             background: #e2e8f0 !important;
             color: #0369a1 !important;
         }
+        /* 라이트 모드에서 Mermaid 다이어그램 선, 화살표, 텍스트 선명도 극대화 */
+        body.light .mermaid-container {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light .mermaid-target svg {
+            filter: drop-shadow(0 2px 8px rgba(15, 23, 42, 0.05));
+        }
+        body.light .mermaid-target .flowchart-link,
+        body.light .mermaid-target path.path,
+        body.light .mermaid-target .edgePath .path,
+        body.light .mermaid-target .messageLine0,
+        body.light .mermaid-target .messageLine1 {
+            stroke: #334155 !important;
+            stroke-width: 2px !important;
+        }
+        body.light .mermaid-target .marker,
+        body.light .mermaid-target #arrowhead path,
+        body.light .mermaid-target marker path {
+            fill: #334155 !important;
+            stroke: #334155 !important;
+        }
+        body.light .mermaid-target text {
+            fill: #0f172a !important;
+            font-weight: 600 !important;
+        }
+        body.light .patch-item {
+            background: #f8fafc !important;
+            border-color: #e2e8f0 !important;
+        }
+        body.light .patch-hash {
+            background: #e2e8f0 !important;
+            color: #0284c7 !important;
+        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -2034,20 +2068,21 @@ flowchart LR
         GenAI["Gemini API\n(v1beta)"]
     end
 
-    Client --> StaticRouter
-    Chat --> APIRouter
-    APIRouter --> EnvKey
-    APIRouter --> Failover
-    Failover --> GenAI
-    GenAI --> Failover
-    Failover --> Chat
+    Client ==> StaticRouter
+    Chat ==> APIRouter
+    APIRouter ==> EnvKey
+    APIRouter ==> Failover
+    Failover ==> GenAI
+    GenAI ==> Failover
+    Failover ==> Chat
 
-    classDef cStyle fill:#1e293b,stroke:#3b82f6,stroke-width:1.5px,color:#f8fafc;
-    classDef sStyle fill:#1e293b,stroke:#10b981,stroke-width:1.5px,color:#f8fafc;
-    classDef gStyle fill:#1e293b,stroke:#a855f7,stroke-width:1.5px,color:#f8fafc;
+    classDef cStyle fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef sStyle fill:#1e293b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef gStyle fill:#1e293b,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
     class Client cStyle;
     class Server sStyle;
     class Gemini gStyle;
+    linkStyle default stroke:#475569,stroke-width:2.5px;
     </pre>
     <div class="mermaid-target" id="mermaidTarget1"></div>
 </div>
@@ -2082,6 +2117,20 @@ sequenceDiagram
     </pre>
     <div class="mermaid-target" id="mermaidTarget2"></div>
 </div>
+                            </div>
+                            <!-- 3) 🚀 GitHub 커밋 & 패치 이력 (Patch Notes) -->
+                            <div style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <div style="font-size: 13px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                                        <span>🚀</span> 최신 깃허브 패치 내역 (Release & Patch Log)
+                                    </div>
+                                    <a href="https://github.com/pghpgh0136/dco-dashboard/commits/main" target="_blank" style="font-size: 11px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                                        <span>GitHub 전체 보기</span> ➔
+                                    </a>
+                                </div>
+                                <div id="gitPatchList" style="display: flex; flex-direction: column; gap: 7px; max-height: 240px; overflow-y: auto; padding-right: 4px;">
+                                    <!-- JS에서 동적 렌더링 -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2747,10 +2796,20 @@ sequenceDiagram
             if (typeof mermaid !== "undefined" && typeof mermaidInitialized !== "undefined" && mermaidInitialized) {
                 mermaid.initialize({
                     startOnLoad: false,
-                    theme: isLight ? "default" : "dark",
+                    theme: isLight ? "neutral" : "dark",
                     themeVariables: {
                         darkMode: !isLight,
-                        background: isLight ? "#ffffff" : "#0f172a"
+                        background: isLight ? "#ffffff" : "#0f172a",
+                        lineColor: isLight ? "#334155" : "#94a3b8",
+                        edgeColor: isLight ? "#334155" : "#94a3b8",
+                        primaryBorderColor: isLight ? "#0284c7" : "#38bdf8",
+                        primaryTextColor: isLight ? "#0f172a" : "#f8fafc",
+                        secondaryTextColor: isLight ? "#1e293b" : "#cbd5e1",
+                        tertiaryTextColor: isLight ? "#334155" : "#94a3b8",
+                        actorBorder: isLight ? "#0284c7" : "#38bdf8",
+                        actorTextColor: isLight ? "#0f172a" : "#f8fafc",
+                        signalColor: isLight ? "#1e293b" : "#cbd5e1",
+                        signalTextColor: isLight ? "#0f172a" : "#f8fafc"
                     }
                 });
                 renderMermaidDiagrams();
@@ -3608,7 +3667,58 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             }
         }
 
+        
+        /* 🚀 깃허브 패치 내역 데이터 및 렌더링 */
+        const gitPatchLogs = [
+            { hash: "263b558", date: "2026-11-18", tag: "Fix", title: "라이트 모드 가독성 전면 개선 (고대비 텍스트 & 선택지)", desc: "실무 탭(핵심지식/퀴즈/메모)의 활성 버튼 대비 강화, 핵심 지식 카드 제목 흑색 보정, 퀴즈 보기 선택지 텍스트 흑색 고정" },
+            { hash: "693f453", date: "2026-11-18", tag: "Update", title: "11/19 ↔ 11/26 시간표 맞교환 & 프로젝트 아키텍처 추가", desc: "11/19(목) 오전 AI(4h)·오후 하드웨어(4h) 변경, 11/26 OS 종일(8h) 교체, 과목 클릭 시 향후 예정일정 리스트 모달 추가, 실시간 50분수업/10분휴게 타이머 도입" },
+            { hash: "ac7c3ff", date: "2026-11-18", tag: "Deploy", title: "Render 클라우드 배포 파이프라인 구성", desc: "PORT 환경변수 동적 바인딩, requirements.txt, render.yaml 배포 스펙 추가" },
+            { hash: "49fb218", date: "2026-11-18", tag: "AI/Fix", title: "Gemini 최신 모델 통신 복구 및 Failover 안정화", desc: "gemini-3.1-flash-lite 기본 탑재 및 503 오류 시 3.8-flash 자동 폴백 구현" },
+            { hash: "bb18f9e", date: "2026-11-18", tag: "Feat", title: "실시간 울산 날씨 위젯 & 와이드 반응형 레이아웃 분할", desc: "Open-Meteo 실시간 기상 연동, 강의실 정보 시간표 태깅 및 상단 총 잔도율 카드 독립" },
+            { hash: "024a08f", date: "2026-11-18", tag: "Feat", title: "AI 지식카드/퀴즈 로컬 영구 보관 & 리마인더 시간 태깅", desc: "사용자가 생성한 AI 카드와 실전 퀴즈를 브라우저에 영구 보관하고 수업별 메모 태깅 지원" },
+            { hash: "fdaff09", date: "2026-11-18", tag: "Init", title: "DCO AI 실무 챗봇 UI & Python 경량 서버 런칭", desc: "Amazon DCO 엔지니어 시니어 어시스턴트 챗봇 플로팅 UI 및 백엔드 프록시 개발" }
+        ];
+
+        function renderGitPatchList() {
+            const listEl = document.getElementById("gitPatchList");
+            if (!listEl) return;
+            listEl.innerHTML = "";
+
+            gitPatchLogs.forEach(patch => {
+                const item = document.createElement("div");
+                item.className = "patch-item";
+                item.style.cssText = "display: flex; flex-direction: column; gap: 4px; background: var(--bg-cell); border: 1px solid var(--border2); border-radius: 8px; padding: 8px 12px; font-size: 12px; transition: all 0.2s;";
+
+                const tagColor = {
+                    "Fix": { bg: "rgba(239, 68, 68, 0.15)", text: "#f87171" },
+                    "Update": { bg: "rgba(56, 189, 248, 0.15)", text: "#38bdf8" },
+                    "Deploy": { bg: "rgba(168, 85, 247, 0.15)", text: "#c084fc" },
+                    "AI/Fix": { bg: "rgba(236, 72, 153, 0.15)", text: "#f472b6" },
+                    "Feat": { bg: "rgba(16, 185, 129, 0.15)", text: "#34d399" },
+                    "Init": { bg: "rgba(245, 158, 11, 0.15)", text: "#fbbf24" }
+                }[patch.tag] || { bg: "rgba(148, 163, 184, 0.15)", text: "#94a3b8" };
+
+                item.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="background: ${tagColor.bg}; color: ${tagColor.text}; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">${patch.tag}</span>
+                            <strong style="color: var(--text-bright); font-size: 12.5px;">${patch.title}</strong>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px;">
+                            <span class="patch-hash" style="font-family: monospace; background: var(--bg-row); padding: 1px 5px; border-radius: 4px; color: #38bdf8;">${patch.hash}</span>
+                            <span style="color: var(--text-muted);">${patch.date}</span>
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-sub); line-height: 1.4; padding-left: 2px;">
+                        ${patch.desc}
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
         function switchHubTab(tabName) {
+            if (tabName === arch) renderGitPatchList();
             const tabs = ["card", "quiz", "memo", "arch"];
             tabs.forEach(t => {
                 const btn = document.getElementById("tabBtn" + t.charAt(0).toUpperCase() + t.slice(1));
