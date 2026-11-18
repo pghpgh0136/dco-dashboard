@@ -85,6 +85,172 @@
             gap: 16px;
         }
         .hero-left { flex: 1; }
+        /* 헤더 진행률 대시보드 미니 바 (확장 및 디테일 강화) */
+        .hero-progress-pill {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: var(--bg-card2, #1e293b);
+            border: 1px solid var(--border2);
+            padding: 8px 18px;
+            border-radius: 24px;
+            font-size: 13px;
+            color: var(--text-main);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .hero-progress-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .hero-progress-info-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-sub);
+        }
+        .hero-progress-info-top strong {
+            color: #38bdf8;
+            font-size: 14px;
+            font-weight: 800;
+        }
+        .hero-progress-info-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .hero-mini-bar {
+            width: 110px;
+            height: 9px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .hero-mini-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #38bdf8);
+            border-radius: 6px;
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+        }
+
+        /* 🌟 오늘 & 내일 2분할 레이아웃 */
+        .day-dual-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        @media (max-width: 600px) {
+            .day-dual-grid { grid-template-columns: 1fr; }
+        }
+        .day-column-box {
+            background: var(--bg-row, rgba(255,255,255,0.02));
+            border: 1px solid var(--border2);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .day-column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 6px;
+            border-bottom: 1px dashed var(--border2);
+            margin-bottom: 2px;
+        }
+        .day-column-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-bright);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .day-tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+        .day-tag.today {
+            background: rgba(37, 99, 235, 0.2);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .day-tag.tomorrow {
+            background: rgba(168, 85, 247, 0.2);
+            color: #c084fc;
+            border: 1px solid rgba(192, 132, 252, 0.3);
+        }
+
+        /* 부드러운 애니메이션 (확장/축소 트랜지션) */
+        .dashboard-row-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+            align-items: stretch;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @media (max-width: 900px) {
+            .dashboard-row-split { grid-template-columns: 1fr; }
+        }
+        .dashboard-row-split.full-schedule-mode {
+            grid-template-columns: 1fr;
+        }
+
+        .schedule-anim-box {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .schedule-anim-box.fade-out {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        /* 시간표 내 '오늘' 강조 스타일 */
+        th.col-today-header {
+            background: rgba(37, 99, 235, 0.25) !important;
+            color: #38bdf8 !important;
+            border-bottom: 2px solid #38bdf8 !important;
+            position: relative;
+        }
+        th.col-today-header::after {
+            content: "● 오늘";
+            display: block;
+            font-size: 10px;
+            color: #ff9900;
+            font-weight: 800;
+            margin-top: 2px;
+        }
+        td.col-today-cell {
+            background: rgba(56, 189, 248, 0.06) !important;
+            border-left: 1px solid rgba(56, 189, 248, 0.25) !important;
+            border-right: 1px solid rgba(56, 189, 248, 0.25) !important;
+        }
+
+        /* 전체 시간표 펼치기 버튼 */
+        .btn-view-full-schedule {
+            background: #2563eb18;
+            color: #38bdf8;
+            border: 1px solid #38bdf844;
+            padding: 4px 10px;
+            border-radius: 14px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-view-full-schedule:hover {
+            background: #2563eb;
+            color: #fff;
+        }
+
         /* 모드 토글 & 시계 헤더 우측 */
         .hero-right {
             display: flex;
@@ -159,6 +325,8 @@
             color: var(--text-sub);
             line-height: 1.5;
         }
+
+
 
         /* 🌟 메인 대시보드 그리드: 오늘 수업 & 전체 남은 시간 */
         .dashboard-row {
@@ -1000,7 +1168,23 @@
                 </p>
             </div>
             <div class="hero-right">
-                <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeBtn">🌙 다크 모드</button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <!-- 전체 교육 진행 현황 (크기 확대 & 디테일 강화) -->
+                    <div class="hero-progress-pill" title="전체 240시간 중 51시간 이수 완료 (21.3%)">
+                        <div class="hero-progress-info">
+                            <div class="hero-progress-info-top">
+                                <span>총 진도율 <strong>21.3%</strong></span>
+                                <span style="color: #64748b;">|</span>
+                                <span>잔여 <strong>189h</strong></span>
+                            </div>
+                            <div class="hero-progress-info-sub">전체 240시간 중 51시간 완료</div>
+                        </div>
+                        <div class="hero-mini-bar">
+                            <div class="hero-mini-fill" style="width: 21.3%;"></div>
+                        </div>
+                    </div>
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeBtn">🌙 다크 모드</button>
+                </div>
                 <div>
                     <div class="live-clock" id="liveClock">00:00:00</div>
                     <div class="live-clock-label" id="liveDate">날짜 로딩 중...</div>
@@ -1009,49 +1193,103 @@
             </div>
         </div>
 
-        <!-- 🌟 메인 1: 오늘 들을 수업 & 전체 남은 교육 시간 -->
-        <div class="dashboard-row">
-            <!-- 오늘 들을 수업 -->
+        <!-- 🌟 메인: 오늘의 학습 일정 & 과목별 잔여 시간 (화면 반반 분할) -->
+        <div class="dashboard-row-split" id="mainDashboardSplit">
+            <!-- 좌측: 오늘의 학습 일정 & 내일 일정 & 전체 시간표 펼치기 -->
             <div class="dash-card">
                 <div class="dash-header">
                     <div class="dash-title">
-                        <span>📌 오늘의 학습 일정</span>
+                        <span id="schedCardIcon">📌</span>
+                        <span id="schedCardTitle">오늘 & 내일의 학습 일정</span>
                     </div>
-                    <span class="date-badge">2026-11-17 (화)</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn-view-full-schedule" id="toggleScheduleBtn" onclick="toggleScheduleView()">
+                            <span id="schedToggleIcon">📅</span>
+                            <span id="schedToggleText">전체 시간표 보기</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="today-schedule-list" id="todayScheduleList">
-                    <!-- JS에서 렌더링 -->
+
+                <!-- 1) 오늘 & 내일 2분할 뷰 (기본 뷰) -->
+                <div class="schedule-anim-box" id="dualDayScheduleWrap">
+                    <div class="day-dual-grid">
+                        <!-- 오늘 일정 -->
+                        <div class="day-column-box">
+                            <div class="day-column-header">
+                                <div class="day-column-title">
+                                    <span>📌 오늘</span>
+                                    <span class="day-tag today">11/18 (수)</span>
+                                </div>
+                                <span style="font-size: 11px; color: #38bdf8; font-weight: 700;">8시간 수업</span>
+                            </div>
+                            <div class="today-schedule-list" id="todayScheduleList">
+                                <!-- JS에서 동적 주입 -->
+                            </div>
+                        </div>
+
+                        <!-- 내일 일정 -->
+                        <div class="day-column-box">
+                            <div class="day-column-header">
+                                <div class="day-column-title">
+                                    <span>🔮 내일</span>
+                                    <span class="day-tag tomorrow">11/19 (목)</span>
+                                </div>
+                                <span style="font-size: 11px; color: #c084fc; font-weight: 700;">8시간 수업</span>
+                            </div>
+                            <div class="today-schedule-list" id="tomorrowScheduleList">
+                                <!-- JS에서 동적 주입 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2) 카드 안에서 바로 펼쳐지는 전체 주차별 시간표 뷰 -->
+                <div class="schedule-anim-box" id="fullScheduleInnerWrap" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 12px; color: var(--text-sub);">💡 과목 클릭 시 공식 교재 정보 팝업 / <strong>● 오늘</strong> 강조</span>
+                        <button onclick="toggleScheduleView()" style="background: none; border: none; color: #38bdf8; font-size: 12px; font-weight: 700; cursor: pointer;">✕ 오늘/내일 일정으로 접기</button>
+                    </div>
+
+                    <div class="week-selector" style="margin-bottom: 12px;">
+                        <button class="week-pill" onclick="renderWeek(1)">1주차</button>
+                        <button class="week-pill active" onclick="renderWeek(2)">2주차 [현재]</button>
+                        <button class="week-pill" onclick="renderWeek(3)">3주차</button>
+                        <button class="week-pill" onclick="renderWeek(4)">4주차</button>
+                        <button class="week-pill" onclick="renderWeek(5)">5주차</button>
+                        <button class="week-pill" onclick="renderWeek(6)">6주차</button>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table id="scheduleTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 85px;">시간</th>
+                                    <th>월요일</th>
+                                    <th>화요일</th>
+                                    <th>수요일</th>
+                                    <th>목요일</th>
+                                    <th>금요일</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleBody">
+                                <!-- JS에서 동적 렌더링 -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- 전체 남은 교육 시간 -->
-            <div class="dash-card">
-                <div class="dash-header">
-                    <div class="dash-title">
-                        <span>⏳ 전체 교육 진행 현황</span>
+            <!-- 우측: 구글 시트 기반 과목별 배정/남은 시간 현황판 -->
+            <div class="subject-hours-section" id="subjectHoursSectionCard" style="margin-bottom: 0;">
+                <div class="section-header-wrap" style="margin-bottom: 14px;">
+                    <div class="sec-title">
+                        <span>📊 과목별 이수 & 잔여 현황</span>
                     </div>
+                    <span style="font-size: 11px; color: #64748b;">(클릭 시 공식 교재 안내)</span>
                 </div>
-                <div class="hours-box">
-                    <div class="hours-desc">수료까지 남은 총 교육 시간</div>
-                    <div class="hours-num" id="remainingHours">189<span style="font-size: 18px; font-weight: 600; color: #94a3b8;"> 시간</span></div>
-                    <div class="hours-desc" id="progressStatusText">전체 240시간 중 51시간 이수 완료 (21.3%)</div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill" id="progressFill" style="width: 21.3%;"></div>
-                    </div>
+                <div class="subject-grid" id="subjectHoursGrid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <!-- JS에서 동적 주입 -->
                 </div>
-            </div>
-        </div>
-
-        <!-- 🌟 메인 2: 구글 시트 기반 과목별 배정/남은 시간 현황판 -->
-        <div class="subject-hours-section">
-            <div class="section-header-wrap">
-                <div class="sec-title">
-                    <span>📊 과목별 교육 시간 이수 & 잔여 현황</span>
-                </div>
-                <span style="font-size: 12px; color: #64748b;">(클릭 시 해당 과목 공식 제공 교재 안내)</span>
-            </div>
-            <div class="subject-grid" id="subjectHoursGrid">
-                <!-- JS에서 동적 주입 -->
             </div>
         </div>
 
@@ -1115,42 +1353,7 @@
             <div class="memo-hint">💾 입력하는 즉시 브라우저에 자동 저장됩니다</div>
         </div>
 
-        <!-- 전체 시간표 영역 -->
-        <div class="section-box">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-                <div class="sec-title">📅 주차별 종합 시간표 (1~6주차)</div>
-                <div style="font-size: 12px; color: #38bdf8; font-weight: 600;">
-                    💡 과목 클릭 시 구글 시트 등록 공식 교재 안내
-                </div>
-            </div>
-
-            <div class="week-selector">
-                <button class="week-pill" onclick="renderWeek(1)">1주차 (11/09 ~ 11/13)</button>
-                <button class="week-pill active" onclick="renderWeek(2)">2주차 (11/16 ~ 11/20) [현재]</button>
-                <button class="week-pill" onclick="renderWeek(3)">3주차 (11/23 ~ 11/27)</button>
-                <button class="week-pill" onclick="renderWeek(4)">4주차 (11/30 ~ 12/04)</button>
-                <button class="week-pill" onclick="renderWeek(5)">5주차 (12/07 ~ 12/11)</button>
-                <button class="week-pill" onclick="renderWeek(6)">6주차 (12/14 ~ 12/18)</button>
-            </div>
-
-            <div class="table-responsive">
-                <table id="scheduleTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 85px;">시간</th>
-                            <th>월요일</th>
-                            <th>화요일</th>
-                            <th>수요일</th>
-                            <th>목요일</th>
-                            <th>금요일</th>
-                        </tr>
-                    </thead>
-                    <tbody id="scheduleBody">
-                        <!-- JS에서 동적 렌더링 -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        <!-- 전체 시간표 영역 (상단 '오늘의 학습 일정' 안으로 이동되어 하단 중복 영역 제거) -->
     </div>
 
     <!-- 🌟 공식 교재 팝업 모달 -->
@@ -1407,32 +1610,45 @@
             }
         }
 
-        // 오늘 수업 섹션 초기화
+        // 오늘 및 내일 수업 섹션 렌더링
         function initTodaySection() {
-            const listEl = document.getElementById('todayScheduleList');
-            listEl.innerHTML = `
-                <div class="today-item" data-subject="Scripting and Automation" onclick="openBookModal('Scripting and Automation')">
-                    <div class="today-time">09:00 - 12:00</div>
-                    <div class="today-subject badge-auto">
-                        오전: Scripting and Automation
-                        <span style="font-size: 11px; color: #94a3b8; font-weight: normal; margin-left: 6px;">(3시간)</span>
+            // 오늘 (11/18 수): Scripting and Automation
+            const todayListEl = document.getElementById('todayScheduleList');
+            if (todayListEl) {
+                todayListEl.innerHTML = `
+                    <div class="today-item" data-subject="Scripting and Automation" onclick="openBookModal('Scripting and Automation')" style="padding: 8px 12px; gap: 8px;">
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">09:00 - 12:00</div>
+                        <div class="today-subject badge-auto" style="font-size: 12px;">오전: Scripting (3h)</div>
                     </div>
-                    <div class="today-room">함월관 4층 안전시스템실</div>
-                </div>
-                <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default;">
-                    <div class="today-time">12:00 - 13:00</div>
-                    <div class="today-subject" style="color: #94a3b8;">🍱 점심 식사 (중식)</div>
-                    <div class="today-room" style="color: #64748b; background: rgba(255,255,255,0.05);">구내식당</div>
-                </div>
-                <div class="today-item" data-subject="Optical Communication" onclick="openBookModal('Optical Communication')" style="border-left-color: #06b6d4;">
-                    <div class="today-time">13:00 - 18:00</div>
-                    <div class="today-subject badge-optic">
-                        오후: Optical Communication
-                        <span style="font-size: 11px; color: #94a3b8; font-weight: normal; margin-left: 6px;">(5시간)</span>
+                    <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default; padding: 6px 12px; gap: 8px;">
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">12:00 - 13:00</div>
+                        <div class="today-subject" style="color: #94a3b8; font-size: 12px;">🍱 점심 식사 (구내식당)</div>
                     </div>
-                    <div class="today-room">06호관 2층 안전진단계측실</div>
-                </div>
-            `;
+                    <div class="today-item" data-subject="Scripting and Automation" onclick="openBookModal('Scripting and Automation')" style="padding: 8px 12px; gap: 8px;">
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">13:00 - 18:00</div>
+                        <div class="today-subject badge-auto" style="font-size: 12px;">오후: Scripting (5h)</div>
+                    </div>
+                `;
+            }
+
+            // 내일 (11/19 목): Operating Systems
+            const tomorrowListEl = document.getElementById('tomorrowScheduleList');
+            if (tomorrowListEl) {
+                tomorrowListEl.innerHTML = `
+                    <div class="today-item" data-subject="Operating Systems" onclick="openBookModal('Operating Systems')" style="border-left-color: #10b981; padding: 8px 12px; gap: 8px;">
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">09:00 - 12:00</div>
+                        <div class="today-subject badge-os" style="font-size: 12px;">오전: Linux OS (3h)</div>
+                    </div>
+                    <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default; padding: 6px 12px; gap: 8px;">
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">12:00 - 13:00</div>
+                        <div class="today-subject" style="color: #94a3b8; font-size: 12px;">🍱 점심 식사 (구내식당)</div>
+                    </div>
+                    <div class="today-item" data-subject="Operating Systems" onclick="openBookModal('Operating Systems')" style="border-left-color: #10b981; padding: 8px 12px; gap: 8px;">
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">13:00 - 18:00</div>
+                        <div class="today-subject badge-os" style="font-size: 12px;">오후: Linux OS (5h)</div>
+                    </div>
+                `;
+            }
         }
 
         // 시간표 렌더링
@@ -1479,6 +1695,64 @@
             return "";
         }
 
+        // 전체 시간표 접기/펼치기 토글 (부드러운 전환)
+        let isFullScheduleOpen = false;
+        function toggleScheduleView() {
+            isFullScheduleOpen = !isFullScheduleOpen;
+            const dualWrap = document.getElementById('dualDayScheduleWrap');
+            const fullWrap = document.getElementById('fullScheduleInnerWrap');
+            const btnText = document.getElementById('schedToggleText');
+            const btnIcon = document.getElementById('schedToggleIcon');
+            const titleEl = document.getElementById('schedCardTitle');
+            const iconEl = document.getElementById('schedCardIcon');
+            const splitWrap = document.getElementById('mainDashboardSplit');
+            const rightHoursCard = document.getElementById('subjectHoursSectionCard');
+
+            if (isFullScheduleOpen) {
+                // 페이드아웃 후 전환
+                dualWrap.classList.add('fade-out');
+                setTimeout(() => {
+                    dualWrap.style.display = 'none';
+                    dualWrap.classList.remove('fade-out');
+
+                    splitWrap.classList.add('full-schedule-mode');
+                    if (rightHoursCard) rightHoursCard.style.display = 'none';
+
+                    fullWrap.style.display = 'block';
+                    fullWrap.classList.add('fade-out');
+                    requestAnimationFrame(() => {
+                        fullWrap.classList.remove('fade-out');
+                    });
+
+                    btnText.textContent = "오늘/내일 일정 접기";
+                    btnIcon.textContent = "📌";
+                    titleEl.textContent = "주차별 종합 시간표 (1~6주차)";
+                    iconEl.textContent = "📅";
+                    renderWeek(2); // 현재 2주차 표시
+                }, 150);
+            } else {
+                fullWrap.classList.add('fade-out');
+                setTimeout(() => {
+                    fullWrap.style.display = 'none';
+                    fullWrap.classList.remove('fade-out');
+
+                    splitWrap.classList.remove('full-schedule-mode');
+                    if (rightHoursCard) rightHoursCard.style.display = 'block';
+
+                    dualWrap.style.display = 'block';
+                    dualWrap.classList.add('fade-out');
+                    requestAnimationFrame(() => {
+                        dualWrap.classList.remove('fade-out');
+                    });
+
+                    btnText.textContent = "전체 시간표 보기";
+                    btnIcon.textContent = "📅";
+                    titleEl.textContent = "오늘 & 내일의 학습 일정";
+                    iconEl.textContent = "📌";
+                }, 150);
+            }
+        }
+
         function renderWeek(weekNum) {
             document.querySelectorAll('.week-pill').forEach((btn, idx) => {
                 btn.classList.toggle('active', idx + 1 === weekNum);
@@ -1488,9 +1762,19 @@
             const tbody = document.getElementById('scheduleBody');
             tbody.innerHTML = '';
 
+            // 현재 주차(2주차) 및 수요일(오늘: 11/18) 강조
+            const isCurrentWeek = (weekNum === 2);
+            const todayColIndex = 2; // 0:월, 1:화, 2:수, 3:목, 4:금
+
             const headerCells = document.querySelectorAll('#scheduleTable thead th');
             data.dates.forEach((d, i) => {
-                headerCells[i + 1].textContent = d;
+                const th = headerCells[i + 1];
+                th.textContent = d;
+                if (isCurrentWeek && i === todayColIndex) {
+                    th.classList.add('col-today-header');
+                } else {
+                    th.classList.remove('col-today-header');
+                }
             });
 
             // 오전 3시간
@@ -1498,9 +1782,10 @@
             amTimes.forEach(t => {
                 let tr = document.createElement('tr');
                 tr.innerHTML = `<td class="col-time">${t}</td>`;
-                data.am.forEach(subj => {
+                data.am.forEach((subj, i) => {
+                    const isToday = isCurrentWeek && (i === todayColIndex);
                     tr.innerHTML += `
-                        <td>
+                        <td class="${isToday ? 'col-today-cell' : ''}">
                             <div class="subject-cell" onclick="openBookModal('${subj}')">
                                 <div class="subject-name ${getSubjectClass(subj)}">${subj}</div>
                             </div>
@@ -1522,9 +1807,10 @@
             pmTimes.forEach(t => {
                 let tr = document.createElement('tr');
                 tr.innerHTML = `<td class="col-time">${t}</td>`;
-                data.pm.forEach(subj => {
+                data.pm.forEach((subj, i) => {
+                    const isToday = isCurrentWeek && (i === todayColIndex);
                     tr.innerHTML += `
-                        <td>
+                        <td class="${isToday ? 'col-today-cell' : ''}">
                             <div class="subject-cell" onclick="openBookModal('${subj}')">
                                 <div class="subject-name ${getSubjectClass(subj)}">${subj}</div>
                             </div>
