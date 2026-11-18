@@ -2756,10 +2756,10 @@
             msgsBox.appendChild(loadingEl);
             msgsBox.scrollTop = msgsBox.scrollHeight;
 
-            // 로컬 서버 URL 자동 결정 (file:// 로 열어도 localhost:8080 으로 통신)
-            const targetUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? '/api/chat'
-                : 'http://localhost:8080/api/chat';
+            // 웹 서버 배포(Render 등) 시 상대 경로, 로컬 파일(file://)일 때만 localhost:8080
+            const targetUrl = (window.location.protocol === 'file:')
+                ? 'http://localhost:8080/api/chat'
+                : '/api/chat';
 
             try {
                 const res = await fetch(targetUrl, {
@@ -2822,10 +2822,10 @@
         /* ================= 🤖 Gemini AI 지식카드 & 퀴즈 무한 생성 로직 ================= */
         // 백엔드 server.py 통신 우선 (키 입력 불필요), GitHub Pages 정적 환경일 때만 입력받은 키로 대체 동작
         async function fetchAiData(endpoint, promptFallbackTopic, promptGenFallback) {
-            // 1. 로컬 서버(localhost:8080) 또는 현재 오리진의 API 직접 호출 (API 키 입력 불필요)
-            const targetUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? endpoint
-                : 'http://localhost:8080' + endpoint;
+            // 1. 웹 서버(Render 등) 시 상대 경로, 로컬 파일(file://)일 때만 localhost:8080 호출
+            const targetUrl = (window.location.protocol === 'file:')
+                ? 'http://localhost:8080' + endpoint
+                : endpoint;
 
             try {
                 const res = await fetch(targetUrl, {
@@ -3028,10 +3028,10 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             msgsBox.appendChild(loadingEl);
             msgsBox.scrollTop = msgsBox.scrollHeight;
 
-            // 로컬 서버 URL 자동 결정 (file:// 로 열어도 localhost:8080 으로 통신)
-            const targetUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? '/api/chat'
-                : 'http://localhost:8080/api/chat';
+            // 웹 서버 배포(Render 등) 시 상대 경로, 로컬 파일(file://)일 때만 localhost:8080
+            const targetUrl = (window.location.protocol === 'file:')
+                ? 'http://localhost:8080/api/chat'
+                : '/api/chat';
 
             try {
                 const res = await fetch(targetUrl, {

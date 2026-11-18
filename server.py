@@ -163,11 +163,13 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
     def send_json_error(self, status, msg):
         self.send_json({"error": msg}, status=status)
 
-def run(port=8080):
+def run(port=None):
+    if port is None:
+        port = int(os.getenv("PORT", 8080))
     server_address = ("", port)
     httpd = HTTPServer(server_address, DCODashboardHandler)
-    print(f"🚀 DCO 대시보드 & AI 서버 실행 중: http://localhost:{port}")
+    print(f"🚀 DCO 대시보드 & AI 서버 실행 중 (포트: {port})")
     httpd.serve_forever()
 
 if __name__ == "__main__":
-    run(8080)
+    run()
