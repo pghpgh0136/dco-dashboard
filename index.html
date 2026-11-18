@@ -10,14 +10,60 @@
             margin: 0;
             padding: 0;
         }
+
+        /* ===== 다크/라이트 모드 CSS 변수 ===== */
+        :root {
+            --bg-base:     #0b0f19;
+            --bg-card:     #111827;
+            --bg-card2:    #162032;
+            --bg-hover:    #1c283f;
+            --border:      #1f2937;
+            --border2:     #233149;
+            --border3:     #334155;
+            --text-main:   #f1f5f9;
+            --text-sub:    #94a3b8;
+            --text-muted:  #64748b;
+            --text-bright: #f8fafc;
+            --bg-row:      #1e293b;
+            --bg-tbl-head: #1e293b;
+            --bg-time:     #131d2e;
+            --bg-cell:     #162032;
+            --bg-cell-hov: #1e293b;
+            --bg-inner:    #0f172a;
+            --bg-modal:    #111827;
+            --shadow:      rgba(0,0,0,0.4);
+        }
+        body.light {
+            --bg-base:     #f0f4f8;
+            --bg-card:     #ffffff;
+            --bg-card2:    #f8fafc;
+            --bg-hover:    #e2eaf3;
+            --border:      #e2e8f0;
+            --border2:     #cbd5e1;
+            --border3:     #94a3b8;
+            --text-main:   #1e293b;
+            --text-sub:    #475569;
+            --text-muted:  #94a3b8;
+            --text-bright: #0f172a;
+            --bg-row:      #f1f5f9;
+            --bg-tbl-head: #e2e8f0;
+            --bg-time:     #e8edf5;
+            --bg-cell:     #f8fafc;
+            --bg-cell-hov: #e2eaf3;
+            --bg-inner:    #f1f5f9;
+            --bg-modal:    #ffffff;
+            --shadow:      rgba(0,0,0,0.1);
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #0b0f19;
-            color: #f1f5f9;
+            background: var(--bg-base);
+            color: var(--text-main);
             min-height: 100vh;
             padding: 24px 16px;
             display: flex;
             justify-content: center;
+            transition: background 0.3s, color 0.3s;
         }
         .container {
             width: 100%;
@@ -26,14 +72,71 @@
 
         /* 메인 히어로 배너 */
         .hero {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: 1px solid #334155;
+            background: linear-gradient(135deg, var(--bg-row) 0%, var(--bg-inner) 100%);
+            border: 1px solid var(--border3);
             border-radius: 20px;
             padding: 28px 32px;
             margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 30px var(--shadow);
             position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
         }
+        .hero-left { flex: 1; }
+        /* 모드 토글 & 시계 헤더 우측 */
+        .hero-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .live-clock {
+            font-family: monospace;
+            font-size: 22px;
+            font-weight: 800;
+            color: #38bdf8;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px rgba(56,189,248,0.4);
+        }
+        .live-clock-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: right;
+        }
+        .current-subject-badge {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid;
+            animation: pulse-badge 2s ease-in-out infinite;
+        }
+        @keyframes pulse-badge {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.65; }
+        }
+        .theme-toggle-btn {
+            background: var(--bg-card2);
+            border: 1px solid var(--border2);
+            color: var(--text-sub);
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .theme-toggle-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-main);
+        }
+
         .badge-aws {
             display: inline-block;
             background: rgba(255, 153, 0, 0.15);
@@ -48,12 +151,12 @@
         h1 {
             font-size: 26px;
             font-weight: 800;
-            color: #f8fafc;
+            color: var(--text-bright);
             margin-bottom: 6px;
         }
         .subtitle {
             font-size: 14px;
-            color: #94a3b8;
+            color: var(--text-sub);
             line-height: 1.5;
         }
 
@@ -68,11 +171,11 @@
             .dashboard-row { grid-template-columns: 1fr; }
         }
         .dash-card {
-            background: #111827;
-            border: 1px solid #1f2937;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 20px var(--shadow);
         }
         .dash-header {
             display: flex;
@@ -83,7 +186,7 @@
         .dash-title {
             font-size: 16px;
             font-weight: 700;
-            color: #f1f5f9;
+            color: var(--text-main);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -106,7 +209,7 @@
         .today-item {
             display: flex;
             align-items: center;
-            background: #1e293b;
+            background: var(--bg-row);
             border-left: 4px solid #a855f7;
             padding: 10px 14px;
             border-radius: 6px;
@@ -115,19 +218,22 @@
             transition: all 0.2s;
         }
         .today-item:hover {
-            background: #27354f;
+            background: var(--bg-hover);
             transform: translateY(-1px);
+        }
+        .today-item.active-class {
+            box-shadow: 0 0 0 2px #38bdf8, 0 4px 16px rgba(56,189,248,0.2);
         }
         .today-time {
             font-family: monospace;
             font-size: 13px;
-            color: #94a3b8;
+            color: var(--text-sub);
             min-width: 95px;
         }
         .today-subject {
             font-weight: 700;
             font-size: 14px;
-            color: #f8fafc;
+            color: var(--text-bright);
             flex: 1;
         }
         .today-room {
@@ -158,12 +264,12 @@
         }
         .hours-desc {
             font-size: 13px;
-            color: #94a3b8;
+            color: var(--text-sub);
         }
         .progress-bar-bg {
             width: 100%;
             height: 8px;
-            background: #1f2937;
+            background: var(--border);
             border-radius: 4px;
             margin-top: 14px;
             overflow: hidden;
@@ -176,8 +282,8 @@
 
         /* 🌟 과목별 남은 시간 게이지 그리드 */
         .subject-hours-section {
-            background: #111827;
-            border: 1px solid #1f2937;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 20px;
@@ -191,7 +297,7 @@
         .sec-title {
             font-size: 16px;
             font-weight: 700;
-            color: #f1f5f9;
+            color: var(--text-main);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -202,8 +308,8 @@
             gap: 12px;
         }
         .subj-card {
-            background: #162032;
-            border: 1px solid #233149;
+            background: var(--bg-card2);
+            border: 1px solid var(--border2);
             border-radius: 10px;
             padding: 12px 14px;
             cursor: pointer;
@@ -211,7 +317,7 @@
         }
         .subj-card:hover {
             border-color: #38bdf8;
-            background: #1c283f;
+            background: var(--bg-hover);
             transform: translateY(-2px);
         }
         .subj-top {
@@ -223,7 +329,7 @@
         .subj-name {
             font-size: 13px;
             font-weight: 700;
-            color: #f1f5f9;
+            color: var(--text-main);
         }
         .subj-rem-badge {
             font-size: 12px;
@@ -233,7 +339,7 @@
         .subj-prog-bg {
             width: 100%;
             height: 6px;
-            background: #0f172a;
+            background: var(--bg-inner, #0f172a);
             border-radius: 3px;
             overflow: hidden;
             margin-bottom: 6px;
@@ -247,13 +353,13 @@
             display: flex;
             justify-content: space-between;
             font-size: 11px;
-            color: #64748b;
+            color: var(--text-muted);
         }
 
         /* 🌟 DCO 직무 핵심 지식 캐러셀(슬라이드 카드 넘기기) */
         .carousel-section {
-            background: #111827;
-            border: 1px solid #1f2937;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 24px;
@@ -265,9 +371,9 @@
             margin-bottom: 14px;
         }
         .carousel-nav-btn {
-            background: #1e293b;
-            color: #f1f5f9;
-            border: 1px solid #334155;
+            background: var(--bg-row);
+            color: var(--text-main);
+            border: 1px solid var(--border3);
             width: 34px;
             height: 34px;
             border-radius: 8px;
@@ -282,15 +388,19 @@
         .carousel-nav-btn:hover {
             background: #2563eb;
             border-color: #2563eb;
+            color: #fff;
         }
         .carousel-content {
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
-            border: 1px solid #334155;
+            border: 1px solid var(--border3);
             border-radius: 12px;
             padding: 20px;
             min-height: 170px;
             position: relative;
             animation: fadeIn 0.25s ease-out;
+        }
+        body.light .carousel-content {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -315,7 +425,7 @@
         }
         .c-desc {
             font-size: 13px;
-            color: #cbd5e1;
+            color: var(--text-sub);
             line-height: 1.6;
         }
         .c-desc ul {
@@ -344,10 +454,139 @@
             background: #38bdf8;
         }
 
+        /* 🌟 DCO 데일리 실무 퀴즈 섹션 */
+        .quiz-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .quiz-card-box {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border: 1px solid var(--border3);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        body.light .quiz-card-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        }
+        .quiz-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .quiz-tag {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 12px;
+        }
+        .quiz-score-badge {
+            color: #facc15;
+            font-weight: 700;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .quiz-question {
+            font-size: 15px;
+            font-weight: 700;
+            color: #f8fafc;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+        .quiz-options-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .quiz-opt-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #e2e8f0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .quiz-opt-btn:hover:not(:disabled) {
+            background: rgba(56, 189, 248, 0.12);
+            border-color: #38bdf8;
+            transform: translateX(4px);
+        }
+        .quiz-opt-btn.correct {
+            background: rgba(34, 197, 94, 0.2) !important;
+            border-color: #22c55e !important;
+            color: #4ade80 !important;
+            font-weight: 700;
+        }
+        .quiz-opt-btn.wrong {
+            background: rgba(239, 68, 68, 0.2) !important;
+            border-color: #ef4444 !important;
+            color: #f87171 !important;
+        }
+        .quiz-result-box {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 14px;
+            display: none;
+        }
+        .quiz-result-box.correct {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+        }
+        .quiz-result-box.wrong {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+        .quiz-bottom-bar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .quiz-nav-action-btn {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quiz-nav-action-btn:hover {
+            background: #1d4ed8;
+        }
+
         /* 시간표 영역 */
         .section-box {
-            background: #111827;
-            border: 1px solid #1f2937;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 18px;
             padding: 24px;
             margin-bottom: 24px;
@@ -359,9 +598,9 @@
             margin-bottom: 16px;
         }
         .week-pill {
-            background: #1e293b;
-            color: #94a3b8;
-            border: 1px solid #334155;
+            background: var(--bg-row);
+            color: var(--text-sub);
+            border: 1px solid var(--border3);
             padding: 6px 14px;
             border-radius: 8px;
             font-size: 13px;
@@ -369,7 +608,7 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .week-pill:hover { background: #334155; color: #fff; }
+        .week-pill:hover { background: var(--bg-hover); color: var(--text-main); }
         .week-pill.active { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
 
         .table-responsive { overflow-x: auto; }
@@ -381,27 +620,27 @@
         }
         th, td {
             padding: 10px 8px;
-            border: 1px solid #1f2937;
+            border: 1px solid var(--border);
         }
         th {
-            background: #1e293b;
-            color: #94a3b8;
+            background: var(--bg-tbl-head);
+            color: var(--text-sub);
             font-weight: 700;
         }
         .col-time {
-            background: #131d2e;
-            color: #64748b;
+            background: var(--bg-time);
+            color: var(--text-muted);
             font-family: monospace;
             font-weight: 600;
             width: 85px;
         }
         .col-lunch {
             background: rgba(148, 163, 184, 0.05);
-            color: #64748b;
+            color: var(--text-muted);
             font-weight: 600;
         }
         .subject-cell {
-            background: #162032;
+            background: var(--bg-cell);
             text-align: left;
             padding: 8px 12px;
             border-radius: 6px;
@@ -410,7 +649,7 @@
             position: relative;
         }
         .subject-cell:hover {
-            background: #1e293b;
+            background: var(--bg-cell-hov);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
             border: 1px solid #38bdf8;
@@ -421,7 +660,7 @@
             right: 8px;
             top: 8px;
             font-size: 10px;
-            color: #64748b;
+            color: var(--text-muted);
             opacity: 0;
             transition: opacity 0.2s;
         }
@@ -431,7 +670,7 @@
         }
         .subject-name {
             font-weight: 700;
-            color: #f1f5f9;
+            color: var(--text-main);
         }
         .badge-hw { color: #f59e0b; }
         .badge-net { color: #3b82f6; }
@@ -439,6 +678,55 @@
         .badge-auto { color: #a855f7; }
         .badge-ai { color: #ec4899; }
         .badge-optic { color: #06b6d4; }
+
+        /* 🌟 메모/리마인더 섹션 */
+        .memo-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .memo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .memo-clear-btn {
+            background: transparent;
+            border: 1px solid var(--border3);
+            color: var(--text-muted);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .memo-clear-btn:hover { border-color: #ef4444; color: #f87171; }
+        .memo-textarea {
+            width: 100%;
+            min-height: 110px;
+            background: var(--bg-inner, #0f172a);
+            border: 1px solid var(--border2);
+            border-radius: 10px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 14px 16px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .memo-textarea::placeholder { color: var(--text-muted); }
+        .memo-textarea:focus { border-color: #38bdf8; }
+        .memo-hint {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: right;
+        }
 
         /* 모달 팝업: 공식 제공 교재 정보 */
         .modal-overlay {
@@ -454,13 +742,13 @@
         }
         .modal-overlay.active { display: flex; }
         .modal-box {
-            background: #1e293b;
-            border: 1px solid #334155;
+            background: var(--bg-modal, #1e293b);
+            border: 1px solid var(--border3);
             border-radius: 18px;
             width: 100%;
             max-width: 520px;
             padding: 26px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 20px 40px var(--shadow);
             position: relative;
             animation: modalIn 0.2s ease-out;
         }
@@ -515,17 +803,210 @@
             line-height: 1.5;
         }
         .modal-book-points li { margin-left: 18px; margin-bottom: 4px; }
+
+        /* 🤖 DCO AI 챗봇 플로팅 UI */
+        .chat-fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff9900, #ea580c);
+            color: #fff;
+            border: none;
+            box-shadow: 0 8px 24px rgba(234, 88, 12, 0.4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            transition: all 0.25s ease;
+            z-index: 1000;
+        }
+        .chat-fab:hover {
+            transform: scale(1.08) translateY(-2px);
+            box-shadow: 0 12px 30px rgba(234, 88, 12, 0.55);
+        }
+        .chat-window {
+            position: fixed;
+            bottom: 92px;
+            right: 24px;
+            width: 380px;
+            max-width: calc(100vw - 32px);
+            height: 540px;
+            max-height: calc(100vh - 120px);
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 18px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+            animation: slideUpFade 0.25s ease-out;
+        }
+        .chat-window.active {
+            display: flex;
+        }
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .chat-header {
+            padding: 14px 18px;
+            background: #0f172a;
+            border-bottom: 1px solid #1f2937;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chat-header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+        .chat-status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #10b981;
+        }
+        .chat-close-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+        }
+        .chat-close-btn:hover {
+            color: #fff;
+            background: #1e293b;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            font-size: 13px;
+        }
+        .chat-msg {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            line-height: 1.5;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+        .chat-msg.bot {
+            align-self: flex-start;
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            border-top-left-radius: 4px;
+        }
+        .chat-msg.user {
+            align-self: flex-end;
+            background: #ff9900;
+            color: #0b0f19;
+            font-weight: 600;
+            border-top-right-radius: 4px;
+        }
+        .chat-msg.loading {
+            align-self: flex-start;
+            background: #1e293b;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        .chat-suggestions {
+            padding: 8px 12px;
+            background: #0f172a;
+            border-top: 1px solid #1f2937;
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .chat-suggestions::-webkit-scrollbar {
+            height: 4px;
+        }
+        .chat-suggestion-chip {
+            background: #1e293b;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chat-suggestion-chip:hover {
+            background: #334155;
+            color: #f1f5f9;
+        }
+        .chat-input-bar {
+            padding: 12px 14px;
+            background: #0f172a;
+            border-top: 1px solid #1f2937;
+            display: flex;
+            gap: 8px;
+        }
+        .chat-input {
+            flex: 1;
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+        }
+        .chat-input:focus {
+            border-color: #ff9900;
+        }
+        .chat-send-btn {
+            background: #ff9900;
+            color: #0b0f19;
+            font-weight: 700;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .chat-send-btn:hover {
+            background: #e68a00;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- 상단 헤더 -->
         <div class="hero">
-            <span class="badge-aws">AWS DATACENTER OPERATIONS</span>
-            <h1>AX과정: Amazon DCO 엔지니어 양성 교육</h1>
-            <p class="subtitle">
-                클라우드 인프라의 심장인 데이터센터(DC)를 지탱하는 <strong>DCO 엔지니어</strong> 실무 교육 대시보드입니다. (한국폴리텍대학 x Amazon DCO)
-            </p>
+            <div class="hero-left">
+                <span class="badge-aws">AWS DATACENTER OPERATIONS</span>
+                <h1>AX과정: Amazon DCO 엔지니어 양성 교육</h1>
+                <p class="subtitle">
+                    클라우드 인프라의 심장인 데이터센터(DC)를 지탱하는 <strong>DCO 엔지니어</strong> 실무 교육 대시보드입니다. (한국폴리텍대학 x Amazon DCO)
+                </p>
+            </div>
+            <div class="hero-right">
+                <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeBtn">🌙 다크 모드</button>
+                <div>
+                    <div class="live-clock" id="liveClock">00:00:00</div>
+                    <div class="live-clock-label" id="liveDate">날짜 로딩 중...</div>
+                </div>
+                <div class="current-subject-badge" id="currentSubjectBadge" style="display:none;"></div>
+            </div>
         </div>
 
         <!-- 🌟 메인 1: 오늘 들을 수업 & 전체 남은 교육 시간 -->
@@ -592,6 +1073,46 @@
             <div class="carousel-dots" id="carouselDots">
                 <!-- JS에서 동적 렌더링 -->
             </div>
+        </div>
+
+        <!-- 🌟 메인 4: DCO 핵심 역량 실무 퀴즈 풀이 -->
+        <div class="quiz-section">
+            <div class="quiz-header">
+                <div class="sec-title">
+                    <span>🎯 DCO 실무 핵심 퀴즈 (지식 테스트)</span>
+                    <span id="quizIndexIndicator" style="font-size: 12px; color: #38bdf8; margin-left: 8px;">(1 / 6)</span>
+                </div>
+                <div class="quiz-score-badge">
+                    현재 점수: <span id="quizScoreText">0</span> / 100점
+                </div>
+            </div>
+            <div class="quiz-card-box">
+                <div class="quiz-meta">
+                    <span class="quiz-tag" id="quizCategoryTag">과목</span>
+                    <span id="quizStatusText" style="color: #94a3b8; font-size: 12px;">선택지를 클릭하여 정답을 맞춰보세요</span>
+                </div>
+                <div class="quiz-question" id="quizQuestionText">
+                    문제가 로딩 중입니다...
+                </div>
+                <div class="quiz-options-list" id="quizOptionsContainer">
+                    <!-- 선택지 버튼 동적 생성 -->
+                </div>
+                <div class="quiz-result-box" id="quizResultBox"></div>
+                <div class="quiz-bottom-bar">
+                    <button class="quiz-nav-action-btn" id="quizNextBtn" style="display: none;" onclick="nextDcoQuiz()">다음 문제 ➔</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🌟 메모 & 리마인더 섹션 -->
+        <div class="memo-section">
+            <div class="memo-header">
+                <div class="sec-title">📝 나만의 리마인더 / 메모</div>
+                <button class="memo-clear-btn" onclick="clearMemo()">🗑 전체 삭제</button>
+            </div>
+            <textarea class="memo-textarea" id="memoArea"
+                placeholder="오늘 꼭 기억할 것, 과제, 질문 사항 등을 자유롭게 메모하세요. (자동 저장 ✅)"></textarea>
+            <div class="memo-hint">💾 입력하는 즉시 브라우저에 자동 저장됩니다</div>
         </div>
 
         <!-- 전체 시간표 영역 -->
@@ -839,20 +1360,43 @@
             const grid = document.getElementById('subjectHoursGrid');
             grid.innerHTML = '';
 
-            for (const [subjName, info] of Object.entries(officialSubjectData)) {
+            // 정렬: 이수 완료(rem=0) 먼저, 그 다음 남은 시간 적은 순
+            const sorted = Object.entries(officialSubjectData).sort(([, a], [, b]) => {
+                const remA = a.totalHours - a.completedHours;
+                const remB = b.totalHours - b.completedHours;
+                if (remA === 0 && remB !== 0) return -1;
+                if (remA !== 0 && remB === 0) return 1;
+                return remA - remB;
+            });
+
+            for (const [subjName, info] of sorted) {
                 const rem = info.totalHours - info.completedHours;
                 const pct = ((info.completedHours / info.totalHours) * 100).toFixed(0);
+                const cls = getSubjectClass(subjName);
+                // 과목 이름 색상: 시간표 badge 색상과 동일하게 적용
+                const colorMap = {
+                    'badge-hw':    '#f59e0b',
+                    'badge-net':   '#3b82f6',
+                    'badge-os':    '#10b981',
+                    'badge-auto':  '#a855f7',
+                    'badge-ai':    '#ec4899',
+                    'badge-optic': '#06b6d4',
+                };
+                const nameColor = colorMap[cls] || '#f1f5f9';
+                // 이수 완료 시 초록 테두리 강조
+                const borderStyle = rem === 0 ? 'border: 1px solid rgba(16,185,129,0.4);' : '';
 
                 const card = document.createElement('div');
                 card.className = 'subj-card';
+                card.style.cssText = borderStyle;
                 card.onclick = () => openBookModal(subjName);
                 card.innerHTML = `
                     <div class="subj-top">
-                        <span class="subj-name">${subjName}</span>
+                        <span class="subj-name" style="color: ${nameColor};">${subjName}</span>
                         <span class="subj-rem-badge">${rem > 0 ? `${rem}시간 남음` : '이수 완료 🎉'}</span>
                     </div>
                     <div class="subj-prog-bg">
-                        <div class="subj-prog-fill" style="width: ${pct}%; background: ${rem === 0 ? '#10b981' : '#38bdf8'};"></div>
+                        <div class="subj-prog-fill" style="width: ${pct}%; background: ${rem === 0 ? '#10b981' : nameColor}; opacity: 0.85;"></div>
                     </div>
                     <div class="subj-bottom">
                         <span>총 ${info.totalHours}시간 배정</span>
@@ -867,7 +1411,7 @@
         function initTodaySection() {
             const listEl = document.getElementById('todayScheduleList');
             listEl.innerHTML = `
-                <div class="today-item" onclick="openBookModal('Scripting and Automation')">
+                <div class="today-item" data-subject="Scripting and Automation" onclick="openBookModal('Scripting and Automation')">
                     <div class="today-time">09:00 - 12:00</div>
                     <div class="today-subject badge-auto">
                         오전: Scripting and Automation
@@ -880,7 +1424,7 @@
                     <div class="today-subject" style="color: #94a3b8;">🍱 점심 식사 (중식)</div>
                     <div class="today-room" style="color: #64748b; background: rgba(255,255,255,0.05);">구내식당</div>
                 </div>
-                <div class="today-item" onclick="openBookModal('Optical Communication')" style="border-left-color: #06b6d4;">
+                <div class="today-item" data-subject="Optical Communication" onclick="openBookModal('Optical Communication')" style="border-left-color: #06b6d4;">
                     <div class="today-time">13:00 - 18:00</div>
                     <div class="today-subject badge-optic">
                         오후: Optical Communication
@@ -1028,11 +1572,319 @@
             document.getElementById('bookModal').classList.remove('active');
         }
 
-        // 초기 실행
+        /* ===== 🌙 다크/라이트 모드 토글 ===== */
+        function toggleTheme() {
+            const isLight = document.body.classList.toggle('light');
+            const btn = document.getElementById('themeBtn');
+            btn.textContent = isLight ? '🌙 다크 모드' : '☀️ 라이트 모드';
+            localStorage.setItem('dco_theme', isLight ? 'light' : 'dark');
+        }
+        (function initTheme() {
+            const saved = localStorage.getItem('dco_theme');
+            if (saved === 'light') {
+                document.body.classList.add('light');
+                document.getElementById('themeBtn').textContent = '🌙 다크 모드';
+            }
+        })();
+
+        /* ===== ⏰ 실시간 시계 & 현재 수업 하이라이트 ===== */
+        const todayScheduleMap = [
+            { start: '09:00', end: '12:00', label: 'Scripting and Automation', color: '#a855f7' },
+            { start: '13:00', end: '18:00', label: 'Optical Communication',    color: '#06b6d4' },
+        ];
+
+        function updateClock() {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2,'0');
+            const mm = String(now.getMinutes()).padStart(2,'0');
+            const ss = String(now.getSeconds()).padStart(2,'0');
+            document.getElementById('liveClock').textContent = `${hh}:${mm}:${ss}`;
+
+            const days = ['일','월','화','수','목','금','토'];
+            document.getElementById('liveDate').textContent =
+                `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')} (${days[now.getDay()]})`;
+
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+            const badge = document.getElementById('currentSubjectBadge');
+            let matched = null;
+            for (const s of todayScheduleMap) {
+                const [sh, sm] = s.start.split(':').map(Number);
+                const [eh, em] = s.end.split(':').map(Number);
+                if (nowMin >= sh*60+sm && nowMin < eh*60+em) { matched = s; break; }
+            }
+            if (matched) {
+                badge.style.display = 'inline-block';
+                badge.textContent = `🔴 수업 중: ${matched.label}`;
+                badge.style.color = matched.color;
+                badge.style.borderColor = matched.color;
+                badge.style.background = matched.color + '1a';
+                // 오늘 일정 아이템 하이라이트
+                document.querySelectorAll('.today-item').forEach(el => {
+                    el.classList.toggle('active-class', el.dataset.subject === matched.label);
+                });
+            } else {
+                badge.style.display = 'none';
+                document.querySelectorAll('.today-item').forEach(el => el.classList.remove('active-class'));
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        /* ===== 📝 메모 자동 저장/불러오기 ===== */
+        const memoArea = document.getElementById('memoArea');
+        const savedMemo = localStorage.getItem('dco_memo');
+        if (savedMemo) memoArea.value = savedMemo;
+        memoArea.addEventListener('input', () => {
+            localStorage.setItem('dco_memo', memoArea.value);
+        });
+        function clearMemo() {
+            if (confirm('메모를 모두 삭제할까요?')) {
+                memoArea.value = '';
+                localStorage.removeItem('dco_memo');
+            }
+        }
+
+        // 초기 실행 (퀴즈 로직은 아래 dcoQuizList 정의 이후에 호출)
         initTodaySection();
         renderSubjectHoursGrid();
         renderKnowledgeCard(0);
         renderWeek(2);
+
+        /* ================= 🌟 DCO 실무 핵심 퀴즈 로직 ================= */
+        const dcoQuizList = [
+            {
+                subject: "스크립트 자동화 (Scripting)",
+                question: "수백 대의 서버 리눅스 콘솔에서 드라이브의 SMART 건강 상태 및 배드 섹터를 주기적으로 점검하기 위해 활용하는 대표적인 명령어는 무엇인가요?",
+                options: ["smartctl", "fdisk -l", "traceroute", "systemctl restart"],
+                answer: 0,
+                explanation: "smartctl(smartmontools)은 스토리지의 자가 진단 및 SMART 속성을 확인하여 장애 전조 증상을 포착하는 데 필수적인 도구입니다."
+            },
+            {
+                subject: "광통신 시스템 (Optical Communication)",
+                question: "데이터센터 간 장거리 전송에 적합하며 파장이 길고 코어 직경이 작아 노란색 자켓으로 구분되는 광케이블 규격은 무엇인가요?",
+                options: ["멀티모드 (OM4, 아쿠아색)", "싱글모드 (OS2, 노란색)", "UTP Cat.6 (파란색)", "동축 케이블 (검은색)"],
+                answer: 1,
+                explanation: "싱글모드(OS1/OS2, 노란색)는 모달 분산이 적어 수십 km 이상의 장거리 고속 전송에 사용되며, DC 내부 단거리 랙 간에는 멀티모드(OM3/OM4)를 주로 씁니다."
+            },
+            {
+                subject: "서버 하드웨어 (Hardware Troubleshooting)",
+                question: "서버 메인보드 및 부품의 하드웨어 수준 센서 이벤트, 전원 이상, 메모리 오류를 메인보드 비휘발성 저장소에 기록하는 로그는 무엇인가요?",
+                options: ["SEL (System Event Log)", "access.log", "history.txt", "cron.log"],
+                answer: 0,
+                explanation: "IPMI/BMC에서 제공하는 SEL(System Event Log)을 통해 Correctable/Uncorrectable 메모리 ECC 에러 및 PSU 결함 소켓을 식별합니다."
+            },
+            {
+                subject: "네트워크 및 랙 (Network & Rack)",
+                question: "서버 랙(42U) 최상단에 장착되어 각 서버 노드의 트래픽을 집선하고 데이터센터 패브릭 스파인(Spine) 스위치로 중계하는 장비는 무엇인가요?",
+                options: ["ToR (Top of Rack) 스위치", "PDU (Power Distribution Unit)", "KVM 콘솔", "UPS 배터리팩"],
+                answer: 0,
+                explanation: "ToR(Top of Rack) 스위치는 랙 내부 서버들을 집선 연결(LACP 이중화 등)하는 최전선 네트워크 장비입니다."
+            },
+            {
+                subject: "리눅스 OS (Linux Engineering)",
+                question: "서버 부팅 시점부터 하드웨어 감지, 드라이버 인식, 커널 링 버퍼 에러 메시지를 타임스탬프와 함께 출력하여 확인하는 명령어는?",
+                options: ["dmesg -T", "ls -al", "ping 8.8.8.8", "cat /etc/hosts"],
+                answer: 0,
+                explanation: "dmesg -T는 커널 버퍼 메시지를 사람이 읽을 수 있는 타임스탬프로 출력하여 장치 드라이버 및 하드웨어 이상 여부를 진단하는 데 탁월합니다."
+            },
+            {
+                subject: "DC 안전 및 규정 (Safety & Security)",
+                question: "전기 설비나 랙 전원 분전반 정비 작업 중 타인이 임의로 전원을 켜 감전 및 사고가 발생하는 것을 방지하는 물리적 안전 절차는?",
+                options: ["LOTO (Lockout / Tagout)", "SLA (Service Level Agreement)", "Hot-swap 교체", "PXE 네트워크 부팅"],
+                answer: 0,
+                explanation: "LOTO는 전원 차단 장치에 물리 자물쇠(Lockout)를 걸고 작업자 정보가 담긴 경고 태그(Tagout)를 부착하여 현장 안전을 보장하는 글로벌 표준 규정입니다."
+            }
+        ];
+
+        let currentQuizIdx = 0;
+        let dcoQuizScore = 0;
+        let isQuizAnswered = false;
+
+        function initDcoQuiz() {
+            currentQuizIdx = 0;
+            dcoQuizScore = 0;
+            renderDcoQuiz();
+        }
+
+        function renderDcoQuiz() {
+            isQuizAnswered = false;
+            const q = dcoQuizList[currentQuizIdx];
+
+            document.getElementById('quizIndexIndicator').textContent = `(${currentQuizIdx + 1} / ${dcoQuizList.length})`;
+            document.getElementById('quizScoreText').textContent = dcoQuizScore;
+            document.getElementById('quizCategoryTag').textContent = q.subject;
+            document.getElementById('quizStatusText').textContent = "선택지를 클릭하여 정답을 맞춰보세요";
+
+            document.getElementById('quizQuestionText').textContent = `Q${currentQuizIdx + 1}. ${q.question}`;
+
+            const resBox = document.getElementById('quizResultBox');
+            resBox.style.display = 'none';
+            resBox.className = 'quiz-result-box';
+
+            const nextBtn = document.getElementById('quizNextBtn');
+            nextBtn.style.display = 'none';
+
+            const container = document.getElementById('quizOptionsContainer');
+            container.innerHTML = '';
+
+            q.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-opt-btn';
+                btn.innerHTML = `<span style="background: rgba(255,255,255,0.1); width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; font-weight:700; font-size:11px;">${idx + 1}</span> <span>${optText}</span>`;
+                btn.onclick = () => handleQuizAnswer(idx);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleQuizAnswer(selectedIdx) {
+            if (isQuizAnswered) return;
+            isQuizAnswered = true;
+
+            const q = dcoQuizList[currentQuizIdx];
+            const buttons = document.querySelectorAll('.quiz-opt-btn');
+            buttons.forEach(b => b.disabled = true);
+
+            const resBox = document.getElementById('quizResultBox');
+            const nextBtn = document.getElementById('quizNextBtn');
+
+            if (selectedIdx === q.answer) {
+                dcoQuizScore += Math.round(100 / dcoQuizList.length);
+                if (dcoQuizScore > 100) dcoQuizScore = 100;
+                document.getElementById('quizScoreText').textContent = dcoQuizScore;
+
+                buttons[selectedIdx].classList.add('correct');
+                resBox.className = 'quiz-result-box correct';
+                resBox.innerHTML = `<strong>🎉 정답입니다!</strong><br>${q.explanation}`;
+                document.getElementById('quizStatusText').textContent = "정답입니다! 👏";
+            } else {
+                buttons[selectedIdx].classList.add('wrong');
+                buttons[q.answer].classList.add('correct');
+                resBox.className = 'quiz-result-box wrong';
+                resBox.innerHTML = `<strong>❌ 아쉽습니다! 오답입니다.</strong><br>${q.explanation}`;
+                document.getElementById('quizStatusText').textContent = "오답입니다. 해설을 확인해보세요.";
+            }
+
+            resBox.style.display = 'block';
+
+            if (currentQuizIdx < dcoQuizList.length - 1) {
+                nextBtn.textContent = "다음 문제 ➔";
+                nextBtn.style.display = "inline-block";
+            } else {
+                nextBtn.textContent = `퀴즈 완료 (${dcoQuizScore}점) - 다시 풀기 🔄`;
+                nextBtn.style.display = "inline-block";
+            }
+        }
+
+        function nextDcoQuiz() {
+            if (currentQuizIdx < dcoQuizList.length - 1) {
+                currentQuizIdx++;
+                renderDcoQuiz();
+            } else {
+                currentQuizIdx = 0;
+                dcoQuizScore = 0;
+                renderDcoQuiz();
+            }
+        }
+
+        // ✅ dcoQuizList 정의 후 퀴즈 초기화
+        initDcoQuiz();
+
+        // 🤖 DCO AI 챗봇 스크립트
+        function toggleChat() {
+            const win = document.getElementById('chatWindow');
+            win.classList.toggle('active');
+            if (win.classList.contains('active')) {
+                document.getElementById('chatInput').focus();
+            }
+        }
+
+        function handleChatKeyDown(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        function askPreset(text) {
+            document.getElementById('chatInput').value = text;
+            sendChatMessage();
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const msgsBox = document.getElementById('chatMessages');
+
+            // 유저 메시지 추가
+            const userEl = document.createElement('div');
+            userEl.className = 'chat-msg user';
+            userEl.textContent = msg;
+            msgsBox.appendChild(userEl);
+
+            input.value = '';
+            msgsBox.scrollTop = msgsBox.scrollHeight;
+
+            // 로딩 메시지 추가
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'chat-msg loading';
+            loadingEl.textContent = 'DCO 엔지니어가 답변을 작성 중입니다... ⚙️';
+            msgsBox.appendChild(loadingEl);
+            msgsBox.scrollTop = msgsBox.scrollHeight;
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+
+                const data = await res.json();
+                msgsBox.removeChild(loadingEl);
+
+                const botEl = document.createElement('div');
+                botEl.className = 'chat-msg bot';
+
+                if (data.reply) {
+                    botEl.textContent = data.reply;
+                } else {
+                    botEl.textContent = '⚠️ ' + (data.error || '답변을 불러오지 못했습니다.');
+                }
+                msgsBox.appendChild(botEl);
+            } catch (err) {
+                msgsBox.removeChild(loadingEl);
+                const botEl = document.createElement('div');
+                botEl.className = 'chat-msg bot';
+                botEl.textContent = '⚠️ 서버 통신 오류가 발생했습니다. 백엔드 서버(server.py)가 실행 중인지 확인해 주세요.';
+                msgsBox.appendChild(botEl);
+            }
+            msgsBox.scrollTop = msgsBox.scrollHeight;
+        }
     </script>
+
+    <!-- 🤖 DCO AI 챗봇 UI HTML -->
+    <button class="chat-fab" id="chatFab" onclick="toggleChat()" title="DCO AI 어시스턴트">💬</button>
+
+    <div class="chat-window" id="chatWindow">
+        <div class="chat-header">
+            <div class="chat-header-title">
+                <span class="chat-status-dot"></span>
+                <span>DCO AI 엔지니어</span>
+            </div>
+            <button class="chat-close-btn" onclick="toggleChat()">✕</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-msg bot">안녕하세요! 🛠️<br>AWS DCO 엔지니어 시니어 어시스턴트입니다.<br>랙/서버 설치, 광케이블링, 전력(PDU/UPS), 쿨링 등 데이터센터 운영에 대해 무엇이든 물어보세요!</div>
+        </div>
+        <div class="chat-suggestions">
+            <span class="chat-suggestion-chip" onclick="askPreset('랙 마운트(Rack & Stack) 기본 안전 수칙 알려줘')">랙 마운트 수칙</span>
+            <span class="chat-suggestion-chip" onclick="askPreset('광케이블(LC/SC) 취급 시 주의사항은?')">광케이블 취급</span>
+            <span class="chat-suggestion-chip" onclick="askPreset('서버실 핫아일/콜드아일 원리가 뭐야?')">핫/콜드아일 원리</span>
+        </div>
+        <div class="chat-input-bar">
+            <input type="text" class="chat-input" id="chatInput" placeholder="DCO 실무 질문을 입력하세요..." onkeydown="handleChatKeyDown(event)">
+            <button class="chat-send-btn" onclick="sendChatMessage()">전송</button>
+        </div>
+    </div>
 </body>
 </html>
