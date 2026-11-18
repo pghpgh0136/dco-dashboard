@@ -785,8 +785,18 @@
             text-align: center;
         }
         th, td {
-            padding: 10px 8px;
+            padding: 6px 6px;
             border: 1px solid var(--border);
+        }
+        .subject-cell {
+            padding: 6px 8px !important;
+        }
+        .subject-name {
+            font-size: 12px;
+        }
+        .subject-room-tag {
+            font-size: 10.5px;
+            margin-top: 2px;
         }
         th {
             background: var(--bg-tbl-head);
@@ -1302,6 +1312,23 @@
             border-color: #38bdf8;
             color: #38bdf8;
         }
+
+        .memo-subject-tag {
+            font-size: 11px;
+            font-weight: 700;
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 4px;
+            padding: 1px 6px;
+            white-space: nowrap;
+        }
+        .ai-gen-notice {
+            font-size: 11px;
+            color: #10b981;
+            font-weight: 600;
+            margin-left: 6px;
+        }
 </style>
 </head>
 <body>
@@ -1394,8 +1421,7 @@
                 <!-- 2) 카드 안에서 바로 펼쳐지는 전체 주차별 시간표 뷰 -->
                 <div class="schedule-anim-box" id="fullScheduleInnerWrap" style="display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <span style="font-size: 12px; color: var(--text-sub);">💡 과목 클릭 시 공식 교재 정보 팝업 / <strong>● 오늘</strong> 강조</span>
-                        <button onclick="toggleScheduleView()" style="background: none; border: none; color: #38bdf8; font-size: 12px; font-weight: 700; cursor: pointer;">✕ 오늘/내일 일정으로 접기</button>
+                        <span style="font-size: 12px; color: var(--text-sub);">💡 과목 클릭 시 공식 교재 정보 팝업 / <strong>● 오늘</strong> 강조 (전체 시간표 한눈에 보기)</span>
                     </div>
 
                     <div class="week-selector" style="margin-bottom: 12px;">
@@ -1407,7 +1433,7 @@
                         <button class="week-pill" onclick="renderWeek(6)">6주차</button>
                     </div>
 
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <div class="table-responsive" style="overflow-x: auto;">
                         <table id="scheduleTable">
                             <thead>
                                 <tr>
@@ -1599,8 +1625,8 @@
             }
         };
 
-        // 💡 DCO 직무 핵심 지식 캐러셀 데이터 (넘겨볼 수 있는 6대 카드)
-        const dcoKnowledgeCards = [
+        // 💡 DCO 기본 공식 지식 카드
+        const baseDcoKnowledgeCards = [
             {
                 badge: "오늘 집중 과목 #1",
                 badgeColor: "#a855f7",
@@ -1675,9 +1701,26 @@
             }
         ];
 
+        function loadSavedAiCards() {
+            try {
+                return JSON.parse(localStorage.getItem('dco_ai_cards') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+        function saveAiCard(card) {
+            const saved = loadSavedAiCards();
+            saved.push(card);
+            localStorage.setItem('dco_ai_cards', JSON.stringify(saved));
+        }
+
+        // 전체 카드 목록 (기본 카드 + 로컬에 저장된 AI 카드)
+        let dcoKnowledgeCards = [...baseDcoKnowledgeCards, ...loadSavedAiCards()];
         let currentCardIndex = 0;
 
         function renderKnowledgeCard(index) {
+            if (index < 0) index = 0;
+            if (index >= dcoKnowledgeCards.length) index = dcoKnowledgeCards.length - 1;
             currentCardIndex = index;
             const c = dcoKnowledgeCards[index];
             const contentEl = document.getElementById('carouselContent');
@@ -1860,7 +1903,7 @@
                         fullWrap.classList.remove('fade-out');
                     });
 
-                    btnText.textContent = "오늘/내일 일정 접기";
+                    btnText.textContent = "오늘/내일 일정 보기";
                     btnIcon.textContent = "📌";
                     titleEl.textContent = "주차별 종합 시간표 (1~6주차)";
                     iconEl.textContent = "📅";
@@ -2036,8 +2079,22 @@
         /* ===== ⏰ 실시간 시계 & 현재 수업 하이라이트 ===== */
         const todayScheduleMap = [
             { start: '09:00', end: '12:00', label: 'Scripting and Automation', color: '#a855f7' },
+            { start: '12:00', end: '13:00', label: '점심시간', color: '#94a3b8' },
             { start: '13:00', end: '18:00', label: 'Scripting and Automation', color: '#a855f7' },
         ];
+
+        function getCurrentSubjectLabel() {
+            const now = new Date();
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+            for (const s of todayScheduleMap) {
+                const [sh, sm] = s.start.split(':').map(Number);
+                const [eh, em] = s.end.split(':').map(Number);
+                if (nowMin >= sh * 60 + sm && nowMin < eh * 60 + em) {
+                    return s.label;
+                }
+            }
+            return '자율 학습/일과 외';
+        }
 
         function updateClock() {
             const now = new Date();
@@ -2054,6 +2111,7 @@
             const badge = document.getElementById('currentSubjectBadge');
             let matched = null;
             for (const s of todayScheduleMap) {
+                if (s.label === '점심시간') continue;
                 const [sh, sm] = s.start.split(':').map(Number);
                 const [eh, em] = s.end.split(':').map(Number);
                 if (nowMin >= sh*60+sm && nowMin < eh*60+em) { matched = s; break; }
@@ -2064,7 +2122,6 @@
                 badge.style.color = matched.color;
                 badge.style.borderColor = matched.color;
                 badge.style.background = matched.color + '1a';
-                // 오늘 일정 아이템 하이라이트
                 document.querySelectorAll('.today-item').forEach(el => {
                     el.classList.toggle('active-class', el.dataset.subject === matched.label);
                 });
@@ -2117,10 +2174,12 @@
             const list = loadMemos();
             const now = new Date();
             const dateStr = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const curSubject = (typeof getCurrentSubjectLabel === 'function') ? getCurrentSubjectLabel() : '학습 메모';
             const newMemo = {
                 id: Date.now(),
                 text: text,
-                date: dateStr
+                date: dateStr,
+                subject: curSubject
             };
             list.unshift(newMemo);
             saveMemos(list);
@@ -2153,9 +2212,13 @@
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
+                const subjHtml = m.subject ? `<span class="memo-subject-tag">📚 ${m.subject}</span>` : '';
                 return `
                     <div class="memo-item">
-                        <div class="memo-item-content">${safeText}</div>
+                        <div class="memo-item-content">
+                            <div style="margin-bottom: 5px;">${subjHtml}</div>
+                            <div>${safeText}</div>
+                        </div>
                         <div class="memo-item-meta">
                             <span class="memo-item-date">${m.date}</span>
                             <button class="memo-del-btn" onclick="deleteMemo(${m.id})">🗑 삭제</button>
@@ -2181,7 +2244,7 @@
         renderMemoList();
 
         /* ================= 🌟 DCO 실무 핵심 퀴즈 로직 ================= */
-        const dcoQuizList = [
+        const baseDcoQuizList = [
             {
                 subject: "스크립트 자동화 (Scripting)",
                 question: "수백 대의 서버 리눅스 콘솔에서 드라이브의 SMART 건강 상태 및 배드 섹터를 주기적으로 점검하기 위해 활용하는 대표적인 명령어는 무엇인가요?",
@@ -2226,6 +2289,21 @@
             }
         ];
 
+        function loadSavedAiQuizzes() {
+            try {
+                return JSON.parse(localStorage.getItem('dco_ai_quizzes') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+        function saveAiQuiz(quiz) {
+            const saved = loadSavedAiQuizzes();
+            saved.push(quiz);
+            localStorage.setItem('dco_ai_quizzes', JSON.stringify(saved));
+        }
+
+        // 전체 퀴즈 목록 (기본 퀴즈 + 로컬에 저장된 AI 퀴즈)
+        let dcoQuizList = [...baseDcoQuizList, ...loadSavedAiQuizzes()];
         let currentQuizIdx = 0;
         let dcoQuizScore = 0;
         let isQuizAnswered = false;
@@ -2392,32 +2470,47 @@
         }
     
         /* ================= 🤖 Gemini AI 지식카드 & 퀴즈 무한 생성 로직 ================= */
-        function getGeminiApiKey() {
-            let key = localStorage.getItem('dco_gemini_api_key');
-            if (!key) {
-                key = prompt('Gemini API 키를 입력해 주세요 (입력 후 브라우저에 안전하게 저장됩니다):');
-                if (key && key.trim()) {
-                    key = key.trim();
-                    localStorage.setItem('dco_gemini_api_key', key);
-                } else {
-                    return null;
+        // 백엔드 server.py 통신 우선 (키 입력 불필요), GitHub Pages 정적 환경일 때만 입력받은 키로 대체 동작
+        async function fetchAiData(endpoint, promptFallbackTopic, promptGenFallback) {
+            // 1. 로컬 서버(localhost:8080) 또는 현재 오리진의 API 직접 호출 (API 키 입력 불필요)
+            const targetUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? endpoint
+                : 'http://localhost:8080' + endpoint;
+
+            try {
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: promptFallbackTopic })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (!data.error) return data;
+                    throw new Error(data.error);
+                }
+            } catch (e) {
+                console.warn('Local server error or offline:', e);
+                // 로컬 서버에서 에러가 난 경우 사용자에게 에러 알림 (불필요한 프롬프트 방지)
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    throw new Error('로컬 AI 서버 응답 실패: ' + e.message);
                 }
             }
-            return key;
-        }
 
-        function resetGeminiApiKey() {
-            localStorage.removeItem('dco_gemini_api_key');
-            alert('저장된 API 키가 초기화되었습니다. 다시 생성 시 새 키를 입력할 수 있습니다.');
-        }
+            // 2. 정적 호스팅(GitHub Pages)용 브라우저 직접 호출 (필요시 키 확인)
+            let apiKey = localStorage.getItem('dco_gemini_api_key');
+            if (!apiKey) {
+                apiKey = prompt('GitHub Pages 정적 사이트에서는 브라우저용 Gemini API 키가 1회 필요합니다.\n(로컬 실행 시에는 python server.py를 켜면 키 입력 없이 즉시 실행됩니다):');
+                if (apiKey && apiKey.trim()) {
+                    apiKey = apiKey.trim();
+                    localStorage.setItem('dco_gemini_api_key', apiKey);
+                } else {
+                    throw new Error('API 키 입력이 취소되었습니다.');
+                }
+            }
 
-        async function callGeminiRaw(promptText) {
-            const apiKey = getGeminiApiKey();
-            if (!apiKey) throw new Error('API 키 입력이 취소되었습니다.');
-
-            // 로컬 server.py가 켜져 있으면 로컬 프록시 우선 시도, 실패 시 Google REST 직접 호출
             const model = 'gemini-3.5-flash-lite';
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const promptText = promptGenFallback(promptFallbackTopic);
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2428,14 +2521,13 @@
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                if (res.status === 400 || res.status === 403) {
-                    localStorage.removeItem('dco_gemini_api_key');
-                }
+                if (res.status === 400 || res.status === 403) localStorage.removeItem('dco_gemini_api_key');
                 throw new Error(errData.error?.message || `API 호출 실패 (${res.status})`);
             }
             const data = await res.json();
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            return rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(cleaned);
         }
 
         // 1) AI 실무 지식 카드 추가 생성
@@ -2454,33 +2546,38 @@
             ];
             const chosen = subjects[Math.floor(Math.random() * subjects.length)];
 
-            const prompt = `당신은 데이터센터(DCO) 수석 엔지니어입니다.
-AWS 및 대형 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드를 아래 JSON 포맷으로 한국어로 정확히 작성해주세요.
+            try {
+                const newCard = await fetchAiData(
+                    '/api/generate-card',
+                    chosen,
+                    (topic) => `당신은 데이터센터(DCO) 수석 엔지니어입니다.
+주제: [${topic}]
+AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드를 아래 JSON 포맷으로 한국어로 정확히 작성해주세요.
 반드시 마크다운 없이 순수 JSON만 출력하세요:
 {
   "badge": "AI 실무 심화",
   "badgeColor": "#0ea5e9",
   "icon": "⚡",
-  "title": "${chosen} 실무 핵심 가이드",
+  "title": "${topic} 실무 핵심 가이드",
   "desc": "데이터센터 현장에서 실제로 적용되는 엔지니어 실무 팁:",
   "items": [
     "<strong>항목1 제목:</strong> 실무 설명...",
     "<strong>항목2 제목:</strong> 실무 설명...",
     "<strong>항목3 제목:</strong> 실무 설명..."
   ]
-}`;
+}`
+                );
 
-            try {
-                const jsonStr = await callGeminiRaw(prompt);
-                const newCard = JSON.parse(jsonStr);
-                newCard.badge = "✨ AI 추천 " + (dcoKnowledgeCards.length + 1);
+                newCard.badge = "✨ AI 실무 " + (dcoKnowledgeCards.length + 1);
+                newCard.isAi = true;
+                saveAiCard(newCard);
                 dcoKnowledgeCards.push(newCard);
                 renderKnowledgeCard(dcoKnowledgeCards.length - 1);
-                alert(`🎉 새 실무 지식 카드가 추가되었습니다!\n[${newCard.title}]`);
+                alert(`🎉 새 실무 지식 카드가 영구 저장되었습니다!\n카드 목록 마지막 (${dcoKnowledgeCards.length}번째)으로 추가되었습니다.\n[${newCard.title}]`);
             } catch (err) {
                 console.error(err);
                 if (err.message !== 'API 키 입력이 취소되었습니다.') {
-                    alert('AI 카드 생성 중 오류가 발생했습니다: ' + err.message);
+                    alert('AI 카드 생성 오류: ' + err.message);
                 }
             } finally {
                 btn.disabled = false;
@@ -2503,8 +2600,12 @@ AWS 및 대형 데이터센터 인프라 현장에서 필수적인 실무 꿀팁
             ];
             const chosenTopic = topics[Math.floor(Math.random() * topics.length)];
 
-            const prompt = `당신은 AWS DCO 채용 및 기술 면접관입니다.
-주제: [${chosenTopic}]
+            try {
+                const newQuiz = await fetchAiData(
+                    '/api/generate-quiz',
+                    chosenTopic,
+                    (topic) => `당신은 AWS DCO 채용 및 기술 면접관입니다.
+주제: [${topic}]
 실제 현장 엔지니어가 접할 수 있는 4지선다형 기술 퀴즈 1문제를 한국어로 만들어주세요.
 반드시 마크다운 코드블록 없이 순수한 JSON 문자열만 출력하세요:
 {
@@ -2513,28 +2614,100 @@ AWS 및 대형 데이터센터 인프라 현장에서 필수적인 실무 꿀팁
   "options": ["보기1", "보기2", "보기3", "보기4"],
   "answer": 0,
   "explanation": "이 보기가 정답인 구체적인 실무 근거 및 해설"
-}
-※ answer는 0, 1, 2, 3 중 올바른 정답의 인덱스 숫자여야 합니다.`;
+}`
+                );
 
-            try {
-                const jsonStr = await callGeminiRaw(prompt);
-                const newQuiz = JSON.parse(jsonStr);
-                newQuiz.subject = "✨ AI " + newQuiz.subject;
+                newQuiz.subject = "✨ AI " + (newQuiz.subject || "실무 퀴즈");
+                newQuiz.isAi = true;
+                saveAiQuiz(newQuiz);
                 dcoQuizList.push(newQuiz);
                 currentQuizIdx = dcoQuizList.length - 1;
                 renderDcoQuiz();
-                alert(`🎯 새로운 AI 실전 문제가 출제되었습니다!\nQ${dcoQuizList.length}: ${newQuiz.question.slice(0, 40)}...`);
+                alert(`🎯 새로운 AI 실전문제가 영구 저장되었습니다!\n퀴즈 목록 마지막 (${dcoQuizList.length}번째)으로 추가되었습니다.\nQ${dcoQuizList.length}: ${newQuiz.question.slice(0, 40)}...`);
             } catch (err) {
                 console.error(err);
                 if (err.message !== 'API 키 입력이 취소되었습니다.') {
-                    alert('AI 문제 출제 중 오류가 발생했습니다: ' + err.message);
+                    alert('AI 퀴즈 출제 오류: ' + err.message);
                 }
             } finally {
                 btn.disabled = false;
                 btn.textContent = originalText;
             }
         }
-</script>
+
+        // 🤖 DCO AI 챗봇 스크립트
+        function toggleChat() {
+            const win = document.getElementById('chatWindow');
+            win.classList.toggle('active');
+            if (win.classList.contains('active')) {
+                document.getElementById('chatInput').focus();
+            }
+        }
+
+        function handleChatKeyDown(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        function askPreset(text) {
+            document.getElementById('chatInput').value = text;
+            sendChatMessage();
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const msgsBox = document.getElementById('chatMessages');
+
+            // 유저 메시지 추가
+            const userEl = document.createElement('div');
+            userEl.className = 'chat-msg user';
+            userEl.textContent = msg;
+            msgsBox.appendChild(userEl);
+
+            input.value = '';
+            msgsBox.scrollTop = msgsBox.scrollHeight;
+
+            // 로딩 메시지 추가
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'chat-msg loading';
+            loadingEl.textContent = 'DCO 엔지니어가 답변을 작성 중입니다... ⚙️';
+            msgsBox.appendChild(loadingEl);
+            msgsBox.scrollTop = msgsBox.scrollHeight;
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+
+                const data = await res.json();
+                msgsBox.removeChild(loadingEl);
+
+                const botEl = document.createElement('div');
+                botEl.className = 'chat-msg bot';
+
+                if (data.reply) {
+                    botEl.textContent = data.reply;
+                } else {
+                    botEl.textContent = '⚠️ ' + (data.error || '답변을 불러오지 못했습니다.');
+                }
+                msgsBox.appendChild(botEl);
+            } catch (err) {
+                msgsBox.removeChild(loadingEl);
+                const botEl = document.createElement('div');
+                botEl.className = 'chat-msg bot';
+                botEl.textContent = '⚠️ 서버 통신 오류가 발생했습니다. 백엔드 서버(server.py)가 실행 중인지 확인해 주세요.';
+                msgsBox.appendChild(botEl);
+            }
+            msgsBox.scrollTop = msgsBox.scrollHeight;
+        }
+    
+        </script>
 
     <!-- 🤖 DCO AI 챗봇 UI HTML -->
     <button class="chat-fab" id="chatFab" onclick="toggleChat()" title="DCO AI 어시스턴트">💬</button>
