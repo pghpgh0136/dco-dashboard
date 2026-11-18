@@ -3718,7 +3718,7 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
         }
 
         function switchHubTab(tabName) {
-            if (tabName === arch) renderGitPatchList();
+            if (tabName === "arch") renderGitPatchList();
             const tabs = ["card", "quiz", "memo", "arch"];
             tabs.forEach(t => {
                 const btn = document.getElementById("tabBtn" + t.charAt(0).toUpperCase() + t.slice(1));
