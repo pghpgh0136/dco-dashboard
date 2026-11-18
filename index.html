@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS DCO 엔지니어 양성과정 통합 대시보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -34,25 +35,76 @@
             --shadow:      rgba(0,0,0,0.4);
         }
         body.light {
-            --bg-base:     #f0f4f8;
+            --bg-base:     #f4f6fa;
             --bg-card:     #ffffff;
             --bg-card2:    #f8fafc;
             --bg-hover:    #e2eaf3;
-            --border:      #e2e8f0;
-            --border2:     #cbd5e1;
-            --border3:     #94a3b8;
-            --text-main:   #1e293b;
-            --text-sub:    #475569;
-            --text-muted:  #94a3b8;
-            --text-bright: #0f172a;
+            --border:      #cbd5e1;
+            --border2:     #94a3b8;
+            --border3:     #64748b;
+            --text-main:   #0f172a;
+            --text-sub:    #334155;
+            --text-muted:  #64748b;
+            --text-bright: #020617;
             --bg-row:      #f1f5f9;
             --bg-tbl-head: #e2e8f0;
-            --bg-time:     #e8edf5;
-            --bg-cell:     #f8fafc;
+            --bg-time:     #e2e8f0;
+            --bg-cell:     #ffffff;
             --bg-cell-hov: #e2eaf3;
-            --bg-inner:    #f1f5f9;
+            --bg-inner:    #f8fafc;
             --bg-modal:    #ffffff;
-            --shadow:      rgba(0,0,0,0.1);
+            --shadow:      rgba(15, 23, 42, 0.12);
+        }
+        /* 라이트 모드 텍스트 대비 및 가독성 전면 개선 */
+        body.light .modal-book-desc {
+            background: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+            color: #334155 !important;
+        }
+        body.light .modal-book-title {
+            color: #0f172a !important;
+        }
+        body.light .modal-book-points {
+            color: #475569 !important;
+        }
+        body.light .modal-box {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        body.light .today-time {
+            color: #334155 !important;
+        }
+        body.light .sec-title {
+            color: #0f172a !important;
+        }
+        body.light .hub-tab-btn {
+            color: #475569 !important;
+        }
+        body.light .hub-tab-btn.active {
+            color: #0284c7 !important;
+            border-bottom-color: #0284c7 !important;
+        }
+        body.light .memo-list-empty {
+            color: #64748b !important;
+        }
+        body.light .quiz-question {
+            color: #0f172a !important;
+        }
+        body.light .quiz-option-btn {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #1e293b !important;
+        }
+        body.light .quiz-option-btn:hover {
+            background: #f1f5f9 !important;
+        }
+        body.light #hubPaneArch div[style*="background: var(--bg-card)"] {
+            background: #ffffff !important;
+        }
+        body.light #hubPaneArch code {
+            background: #e2e8f0 !important;
+            color: #0369a1 !important;
         }
 
         body {
@@ -1183,6 +1235,30 @@
         .modal-book-points li { margin-left: 18px; margin-bottom: 4px; }
 
         /* 🤖 DCO AI 챗봇 플로팅 UI */
+        .theme-floating-fab {
+            position: fixed;
+            bottom: 24px;
+            right: 92px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 2px solid var(--border3);
+            box-shadow: 0 8px 24px var(--shadow);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+        .theme-floating-fab:hover {
+            transform: scale(1.08) translateY(-2px);
+            border-color: #38bdf8;
+            box-shadow: 0 12px 30px rgba(56, 189, 248, 0.35);
+        }
         .chat-fab {
             position: fixed;
             bottom: 24px;
@@ -1589,10 +1665,6 @@
             </div>
             <div class="hero-right">
                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeBtn">🌙 다크 모드</button>
-                    </div>
-
                     <!-- 🌤️ 날씨 미니 위젯 (울산 한국폴리텍 기준) -->
                     <div class="weather-mini-row" id="weatherBanner" style="margin-top: 0;">
                         <div class="weather-mini-pill">
@@ -1757,6 +1829,9 @@
                         <button class="hub-tab-btn" id="tabBtnMemo" onclick="switchHubTab('memo')">
                             <span>📝</span> 메모/리마인더
                         </button>
+                        <button class="hub-tab-btn" id="tabBtnArch" onclick="switchHubTab('arch')">
+                            <span>⚙️</span> 프로젝트 아키텍처
+                        </button>
                     </div>
 
                     <!-- 1) DCO 핵심 지식 카드 탭 -->
@@ -1836,6 +1911,125 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- 4) 프로젝트 아키텍처 및 동작 원리 시각화 탭 -->
+                    <div class="hub-tab-pane" id="hubPaneArch" style="display: none;">
+                        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+                                <div class="sec-title" style="font-size: 14px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                                    <span>⚙️</span> 시스템 아키텍처 & 동작 원리 시각화
+                                </div>
+                                <span style="font-size: 11px; color: var(--text-muted); background: var(--bg-row); padding: 2px 8px; border-radius: 12px;">Mermaid Engine</span>
+                            </div>
+
+                            <p style="font-size: 12.5px; color: var(--text-sub); line-height: 1.5; margin-bottom: 14px;">
+                                이 대시보드는 <strong>Frontend (HTML/JS)</strong>, <strong>경량 백엔드 (Python HTTPServer)</strong>, 그리고 <strong>Google Gemini API (LLM)</strong>가 유기적으로 연동되어 작동합니다.
+                            </p>
+
+                            <!-- 시스템 블록 요약 카드 3종 -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px;">
+                                <div style="background: var(--bg-cell); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px;">
+                                    <div style="font-size: 12px; font-weight: 700; color: #34d399; margin-bottom: 4px;">🖥️ Frontend (UI)</div>
+                                    <div style="font-size: 11px; color: var(--text-sub); line-height: 1.4;">
+                                        • 수료 잔여 시간 실시간 계산<br>
+                                        • 오늘의 강의실 & 시간표 렌더링<br>
+                                        • 비동기(Fetch) AI 챗봇 인터페이스
+                                    </div>
+                                </div>
+                                <div style="background: var(--bg-cell); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px;">
+                                    <div style="font-size: 12px; font-weight: 700; color: #60a5fa; margin-bottom: 4px;">⚙️ Backend Server</div>
+                                    <div style="font-size: 11px; color: var(--text-sub); line-height: 1.4;">
+                                        • Python <code>server.py</code> 경량 프록시<br>
+                                        • <code>/api/chat</code> 엔드포인트 보안 중계<br>
+                                        • 503 오류 시 Gemini 모델 다중 Failover
+                                    </div>
+                                </div>
+                                <div style="background: var(--bg-cell); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px;">
+                                    <div style="font-size: 12px; font-weight: 700; color: #c084fc; margin-bottom: 4px;">☁️ Gemini AI Cloud</div>
+                                    <div style="font-size: 11px; color: var(--text-sub); line-height: 1.4;">
+                                        • 시니어 DCO 엔지니어 페르소나 주입<br>
+                                        • <code>gemini-3.1-flash-lite</code> 기본<br>
+                                        • 데이터센터 실무 지식/퀴즈 생성
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 다이어그램 1: 전체 시스템 구성도 -->
+                            <div style="margin-bottom: 16px;">
+                                <div style="font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+                                    <span>🌐</span> 시스템 상호작용 구성도
+                                </div>
+                                <div class="mermaid-container" style="background: var(--bg-inner); border: 1px solid var(--border2); border-radius: 8px; padding: 12px; overflow-x: auto; min-height: 220px;" id="mermaidContainer1">
+    <pre class="mermaid-src" style="display:none;">
+flowchart LR
+    subgraph Client ["🖥️ 브라우저 (Frontend)"]
+        UI["대시보드 UI"]
+        Chat["DCO AI 챗봇"]
+        Tracker["잔여 시간 트래커"]
+    end
+
+    subgraph Server ["⚙️ 백엔드 (server.py)"]
+        StaticRouter["정적 리소스 서빙"]
+        APIRouter["/api/chat 엔드포인트"]
+        Failover["모델 Failover 중계"]
+        EnvKey[".env 보안키"]
+    end
+
+    subgraph Gemini ["☁️ Google Gemini"]
+        GenAI["Gemini API\n(v1beta)"]
+    end
+
+    Client --> StaticRouter
+    Chat --> APIRouter
+    APIRouter --> EnvKey
+    APIRouter --> Failover
+    Failover --> GenAI
+    GenAI --> Failover
+    Failover --> Chat
+
+    classDef cStyle fill:#1e293b,stroke:#3b82f6,stroke-width:1.5px,color:#f8fafc;
+    classDef sStyle fill:#1e293b,stroke:#10b981,stroke-width:1.5px,color:#f8fafc;
+    classDef gStyle fill:#1e293b,stroke:#a855f7,stroke-width:1.5px,color:#f8fafc;
+    class Client cStyle;
+    class Server sStyle;
+    class Gemini gStyle;
+    </pre>
+    <div class="mermaid-target" id="mermaidTarget1"></div>
+</div>
+                            </div>
+
+                            <!-- 다이어그램 2: AI 질문 처리 시퀀스 -->
+                            <div>
+                                <div style="font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+                                    <span>🔄</span> AI 챗봇 실시간 처리 흐름 (시퀀스)
+                                </div>
+                                <div class="mermaid-container" style="background: var(--bg-inner); border: 1px solid var(--border2); border-radius: 8px; padding: 12px; overflow-x: auto; min-height: 220px;" id="mermaidContainer2">
+    <pre class="mermaid-src" style="display:none;">
+sequenceDiagram
+    autonumber
+    actor User as 사용자
+    participant UI as 프론트엔드
+    participant Server as 백엔드(server.py)
+    participant AI as Gemini API
+
+    User->>UI: 질문 입력 및 전송
+    UI->>Server: POST /api/chat { message }
+    Server->>Server: .env 로드 & DCO 프롬프트 결합
+    Server->>AI: gemini-3.1-flash-lite 요청
+    alt 정상 응답
+        AI-->>Server: 200 OK (응답 텍스트 반환)
+    else 503 또는 일시 장애
+        Server->>AI: gemini-3.8-flash 자동 재시도
+        AI-->>Server: 200 OK (응답 텍스트 반환)
+    end
+    Server-->>UI: { reply: "AI 생성 답변" }
+    UI->>User: 채팅창 말풍선 렌더링
+    </pre>
+    <div class="mermaid-target" id="mermaidTarget2"></div>
+</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1845,13 +2039,25 @@
 
     <!-- 🌟 공식 교재 팝업 모달 -->
     <div class="modal-overlay" id="bookModal" onclick="closeModal(event)">
-        <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-box" onclick="event.stopPropagation()" style="max-height: 88vh; overflow-y: auto;">
             <button class="modal-close" onclick="closeModal()">✕</button>
             <span class="modal-subject-tag" id="mSubjectTag">과목명</span>
             <div class="modal-room-box" id="mBookRoom">📍 교육 장소: 함월관 4층 안전시스템실</div>
             <div class="modal-book-title" id="mBookTitle">공식 교재명</div>
             <div class="modal-book-hours" id="mBookHours">총 교육 시간: 40시간</div>
             <div class="modal-book-desc" id="mBookDesc">책 소개 내용</div>
+
+            <!-- 📅 향후 예정된 수업 일정 안내 섹션 -->
+            <div style="background: var(--bg-cell); border: 1px solid var(--border2); border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                <div style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>📅 향후 예정된 수업 일정</span>
+                    <span id="mUpcomingCount" style="font-size: 11px; font-weight: 400; color: var(--text-muted);"></span>
+                </div>
+                <div id="mUpcomingScheduleList" style="display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; padding-right: 4px;">
+                    <!-- JS에서 동적 주입 -->
+                </div>
+            </div>
+
             <div style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;">🎯 DCO 실무 연계 & 평가 포인트</div>
             <ul class="modal-book-points" id="mBookPoints"></ul>
         </div>
@@ -2147,31 +2353,31 @@
                 `;
             }
 
-            // 내일 (11/19 목): Operating Systems (함월관 4층 안전시스템실)
+            // 내일 (11/19 목): 11/26과 교환되어 오전: 생성형AI 활용 (4h) / 오후: Computer Hardware (4h)
             const tomorrowListEl = document.getElementById('tomorrowScheduleList');
             if (tomorrowListEl) {
                 tomorrowListEl.innerHTML = `
-                    <div class="today-item" data-subject="Operating Systems" onclick="openBookModal('Operating Systems', '함월관 4층 안전시스템실')" style="border-left-color: #10b981; padding: 8px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">09:00 - 12:00</div>
-                        <div class="today-subject badge-os" style="font-size: 12px;">오전: Linux OS (3h)</div>
-                        <div class="today-room">📍 함월관 4층 안전시스템실</div>
+                    <div class="today-item" data-subject="생성형AI 활용" onclick="openBookModal('생성형AI 활용', '06호관 2층 AI프로그램실')" style="border-left-color: #ec4899; padding: 8px 12px; gap: 8px;">
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">09:00 - 13:00</div>
+                        <div class="today-subject badge-ai" style="font-size: 12px;">오전: 생성형AI 활용 (4h)</div>
+                        <div class="today-room">📍 06호관 2층 AI프로그램실</div>
                     </div>
                     <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default; padding: 6px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">12:00 - 13:00</div>
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">13:00 - 14:00</div>
                         <div class="today-subject" style="color: #94a3b8; font-size: 12px;">🍱 점심 식사 (구내식당)</div>
                         <div class="today-room" style="color: #94a3b8; background: rgba(255,255,255,0.05);">-</div>
                     </div>
-                    <div class="today-item" data-subject="Operating Systems" onclick="openBookModal('Operating Systems', '함월관 4층 안전시스템실')" style="border-left-color: #10b981; padding: 8px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">13:00 - 18:00</div>
-                        <div class="today-subject badge-os" style="font-size: 12px;">오후: Linux OS (5h)</div>
-                        <div class="today-room">📍 함월관 4층 안전시스템실</div>
+                    <div class="today-item" data-subject="Computer Hardware" onclick="openBookModal('Computer Hardware', '06호관 2층 안전진단계측실')" style="border-left-color: #f59e0b; padding: 8px 12px; gap: 8px;">
+                        <div class="today-time" style="min-width: 80px; font-size: 11px;">14:00 - 18:00</div>
+                        <div class="today-subject badge-hw" style="font-size: 12px;">오후: Computer Hardware (4h)</div>
+                        <div class="today-room">📍 06호관 2층 안전진단계측실</div>
                     </div>
                 `;
             }
         }
 
         // 시간표 렌더링 데이터 (1~3주차 확정 강의실 및 4~6주차 미정 안내)
-        const scheduleData = {"1": {"dates": ["11/09 (월)", "11/10 (화)", "11/11 (수)", "11/12 (목)", "11/13 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "10:00 - 11:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "11:00 - 12:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "14:00 - 15:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "15:00 - 16:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "16:00 - 17:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "17:00 - 18:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}]}, "2": {"dates": ["11/16 (월)", "11/17 (화)", "11/18 (수)", "11/19 (목)", "11/20 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"]]}, {"time": "10:00 - 11:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"]]}, {"time": "11:00 - 12:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"]]}, {"time": "14:00 - 15:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "15:00 - 16:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "16:00 - 17:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "17:00 - 18:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}]}, "3": {"dates": ["11/23 (월)", "11/24 (화)", "11/25 (수)", "11/26 (목)", "11/27 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"], ["Optical Communication", "06호관 2층 안전진단계측실"]]}, {"time": "10:00 - 11:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"], ["Optical Communication", "06호관 2층 안전진단계측실"]]}, {"time": "11:00 - 12:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"], ["Optical Communication", "06호관 2층 안전진단계측실"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"], ["Optical Communication", "06호관 2층 안전진단계측실"]]}, {"time": "14:00 - 15:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Computer Hardware", "06호관 2층 안전진단계측실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "15:00 - 16:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Computer Hardware", "06호관 2층 안전진단계측실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "16:00 - 17:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Computer Hardware", "06호관 2층 안전진단계측실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "17:00 - 18:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Computer Hardware", "06호관 2층 안전진단계측실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}]}, "4": {"dates": ["11/30 (월)", "12/01 (화)", "12/02 (수)", "12/03 (목)", "12/04 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Operating Systems", "TBD"], ["생성형AI 활용", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "10:00 - 11:00", "items": [["Operating Systems", "TBD"], ["생성형AI 활용", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "11:00 - 12:00", "items": [["Operating Systems", "TBD"], ["생성형AI 활용", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Operating Systems", "TBD"], ["생성형AI 활용", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "14:00 - 15:00", "items": [["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "15:00 - 16:00", "items": [["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "16:00 - 17:00", "items": [["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "17:00 - 18:00", "items": [["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}]}, "5": {"dates": ["12/07 (월)", "12/08 (화)", "12/09 (수)", "12/10 (목)", "12/11 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"], ["Optical Communication", "TBD"]]}, {"time": "10:00 - 11:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"], ["Optical Communication", "TBD"]]}, {"time": "11:00 - 12:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"], ["Optical Communication", "TBD"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"], ["Optical Communication", "TBD"]]}, {"time": "14:00 - 15:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "15:00 - 16:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "16:00 - 17:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "17:00 - 18:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}]}, "6": {"dates": ["12/14 (월)", "12/15 (화)", "12/16 (수)", "12/17 (목)", "12/18 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Scripting and Automation", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "10:00 - 11:00", "items": [["Scripting and Automation", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "11:00 - 12:00", "items": [["Scripting and Automation", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Scripting and Automation", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "14:00 - 15:00", "items": [["Scripting and Automation", "TBD"], ["Routing and Switching", "TBD"], ["Routing and Switching", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "15:00 - 16:00", "items": [["Scripting and Automation", "TBD"], ["Routing and Switching", "TBD"], ["Routing and Switching", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "16:00 - 17:00", "items": [["Scripting and Automation", "TBD"], ["Routing and Switching", "TBD"], ["Routing and Switching", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "17:00 - 18:00", "items": [["Scripting and Automation", "TBD"], ["Routing and Switching", "TBD"], ["Routing and Switching", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"]]}]}};
+        const scheduleData = {"1": {"dates": ["11/09 (월)", "11/10 (화)", "11/11 (수)", "11/12 (목)", "11/13 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "10:00 - 11:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "11:00 - 12:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "14:00 - 15:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "15:00 - 16:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "16:00 - 17:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}, {"time": "17:00 - 18:00", "items": [["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["Datacenter Overview", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"]]}]}, "2": {"dates": ["11/16 (월)", "11/17 (화)", "11/18 (수)", "11/19 (목)", "11/20 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"], ["Scripting and Automation", "함월관 4층 안전시스템실"]]}, {"time": "10:00 - 11:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"], ["Scripting and Automation", "함월관 4층 안전시스템실"]]}, {"time": "11:00 - 12:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"], ["Scripting and Automation", "함월관 4층 안전시스템실"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["생성형AI 활용", "06호관 2층 AI프로그램실"], ["Scripting and Automation", "함월관 4층 안전시스템실"]]}, {"time": "14:00 - 15:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Computer Hardware", "06호관 2층 안전진단계측실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "15:00 - 16:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Computer Hardware", "06호관 2층 안전진단계측실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "16:00 - 17:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Computer Hardware", "06호관 2층 안전진단계측실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "17:00 - 18:00", "items": [["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"], ["Scripting and Automation", "함월관 4층 안전시스템실"], ["Computer Hardware", "06호관 2층 안전진단계측실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}]}, "3": {"dates": ["11/23 (월)", "11/24 (화)", "11/25 (수)", "11/26 (목)", "11/27 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"]]}, {"time": "10:00 - 11:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"]]}, {"time": "11:00 - 12:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Optical Communication", "06호관 2층 안전진단계측실"]]}, {"time": "14:00 - 15:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "15:00 - 16:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "16:00 - 17:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}, {"time": "17:00 - 18:00", "items": [["Scripting and Automation", "함월관 4층 안전시스템실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Network Fundamentals", "06호관 2층 AI제조데이터실"], ["Operating Systems", "함월관 4층 안전시스템실"], ["Routing and Switching", "06호관 2층 AI제조데이터실"]]}]}, "4": {"dates": ["11/30 (월)", "12/01 (화)", "12/02 (수)", "12/03 (목)", "12/04 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Operating Systems", "TBD"], ["생성형AI 활용", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "10:00 - 11:00", "items": [["Operating Systems", "TBD"], ["생성형AI 활용", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "11:00 - 12:00", "items": [["Operating Systems", "TBD"], ["생성형AI 활용", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Operating Systems", "TBD"], ["생성형AI 활용", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "14:00 - 15:00", "items": [["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "15:00 - 16:00", "items": [["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "16:00 - 17:00", "items": [["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "17:00 - 18:00", "items": [["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}]}, "5": {"dates": ["12/07 (월)", "12/08 (화)", "12/09 (수)", "12/10 (목)", "12/11 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"], ["Optical Communication", "TBD"]]}, {"time": "10:00 - 11:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"], ["Optical Communication", "TBD"]]}, {"time": "11:00 - 12:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"], ["Optical Communication", "TBD"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"], ["Optical Communication", "TBD"]]}, {"time": "14:00 - 15:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "15:00 - 16:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "16:00 - 17:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}, {"time": "17:00 - 18:00", "items": [["Scripting and Automation", "TBD"], ["Operating Systems", "TBD"], ["Optical Communication", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"]]}]}, "6": {"dates": ["12/14 (월)", "12/15 (화)", "12/16 (수)", "12/17 (목)", "12/18 (금)"], "am": [{"time": "09:00 - 10:00", "items": [["Scripting and Automation", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "10:00 - 11:00", "items": [["Scripting and Automation", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "11:00 - 12:00", "items": [["Scripting and Automation", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"]]}], "pm": [{"time": "13:00 - 14:00", "items": [["Scripting and Automation", "TBD"], ["Computer Hardware", "TBD"], ["Computer Hardware", "TBD"], ["Routing and Switching", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "14:00 - 15:00", "items": [["Scripting and Automation", "TBD"], ["Routing and Switching", "TBD"], ["Routing and Switching", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "15:00 - 16:00", "items": [["Scripting and Automation", "TBD"], ["Routing and Switching", "TBD"], ["Routing and Switching", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "16:00 - 17:00", "items": [["Scripting and Automation", "TBD"], ["Routing and Switching", "TBD"], ["Routing and Switching", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"]]}, {"time": "17:00 - 18:00", "items": [["Scripting and Automation", "TBD"], ["Routing and Switching", "TBD"], ["Routing and Switching", "TBD"], ["Network Fundamentals", "TBD"], ["Computer Hardware", "TBD"]]}]}};
 
         function getSubjectClass(name) {
             if (name.includes("Hardware")) return "badge-hw";
@@ -2316,6 +2522,74 @@
             });
         }
 
+        // 과목별 향후 예정 수업 일정 검색 함수
+        function getUpcomingScheduleForSubject(subjectName) {
+            if (typeof scheduleData === "undefined") return [];
+            const upcoming = [];
+            const now = new Date();
+            const curY = now.getFullYear();
+            const curM = now.getMonth() + 1;
+            const curD = now.getDate();
+            const todayInt = curM * 100 + curD;
+
+            for (const [wkKey, wkData] of Object.entries(scheduleData)) {
+                const dates = wkData.dates;
+                for (let dayIdx = 0; dayIdx < dates.length; dayIdx++) {
+                    const dateStr = dates[dayIdx]; // e.g., "11/19 (목)"
+                    const mMatch = dateStr.match(/(\d+)\/(\d+)/);
+                    if (!mMatch) continue;
+                    const month = parseInt(mMatch[1], 10);
+                    const day = parseInt(mMatch[2], 10);
+                    const dateInt = month * 100 + day;
+
+                    // 오늘(11/18) 이후인 경우에만 향후 일정으로 포함 (11/19부터)
+                    if (dateInt <= todayInt) continue;
+
+                    let dailyHours = 0;
+                    let firstTime = "";
+                    let lastTime = "";
+                    let targetRoom = "";
+
+                    const allSlots = [...(wkData.am || []), ...(wkData.pm || [])];
+                    for (const slot of allSlots) {
+                        const item = slot.items[dayIdx];
+                        if (!item) continue;
+                        const sName = item[0] || "";
+                        const sRoom = item[1] || "";
+                        
+                        // 과목명 매칭 (대소문자 무시 및 부분 일치)
+                        const normSubj = subjectName.toLowerCase();
+                        const normItem = sName.toLowerCase();
+                        const isMatch = normSubj.includes(normItem) || normItem.includes(normSubj) ||
+                            (normSubj.includes("network") && normItem.includes("network")) ||
+                            (normSubj.includes("optical") && normItem.includes("optical")) ||
+                            (normSubj.includes("operating") && normItem.includes("operating")) ||
+                            (normSubj.includes("scripting") && normItem.includes("scripting")) ||
+                            (normSubj.includes("hardware") && normItem.includes("hardware")) ||
+                            (normSubj.includes("ai") && normItem.includes("ai"));
+
+                        if (isMatch) {
+                            dailyHours++;
+                            if (!firstTime) firstTime = slot.time.split(" - ")[0];
+                            lastTime = slot.time.split(" - ")[1];
+                            if (!targetRoom && sRoom) targetRoom = sRoom;
+                        }
+                    }
+
+                    if (dailyHours > 0) {
+                        upcoming.push({
+                            week: wkKey,
+                            dateStr: dateStr,
+                            hours: dailyHours,
+                            timeRange: `${firstTime} ~ ${lastTime}`,
+                            room: targetRoom || "강의실 확인 필요"
+                        });
+                    }
+                }
+            }
+            return upcoming;
+        }
+
         // 공식 교재 및 장소 안내 팝업 모달 열기
         function openBookModal(subjectName, room) {
             // 이름 매핑
@@ -2364,6 +2638,37 @@
             document.getElementById('mBookHours').textContent = `총 배정 시간: ${info.totalHours}시간 (${info.completedHours}시간 완료 / ${info.totalHours - info.completedHours}시간 남음)`;
             document.getElementById('mBookDesc').textContent = `${info.desc} (출처: 구글 시트 기본안내사항 교재 목록)`;
 
+            // 향후 예정 수업 일정 주입
+            const upcomingList = getUpcomingScheduleForSubject(key);
+            const upEl = document.getElementById("mUpcomingScheduleList");
+            const upCountEl = document.getElementById("mUpcomingCount");
+            if (upEl) {
+                upEl.innerHTML = "";
+                if (upcomingList.length === 0) {
+                    if (info.totalHours - info.completedHours === 0) {
+                        upEl.innerHTML = `<div style="font-size: 12px; color: #10b981; padding: 6px;">🎉 이수 완료된 과목으로 향후 예정된 수업이 없습니다.</div>`;
+                    } else {
+                        upEl.innerHTML = `<div style="font-size: 12px; color: var(--text-muted); padding: 6px;">향후 공식 등록된 수업 일정이 없습니다.</div>`;
+                    }
+                    if (upCountEl) upCountEl.textContent = "0건";
+                } else {
+                    if (upCountEl) upCountEl.textContent = `총 ${upcomingList.length}회차 예정`;
+                    upcomingList.forEach(item => {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: var(--bg-row); padding: 6px 10px; border-radius: 6px; font-size: 12px;";
+                        row.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 700; padding: 1px 6px; border-radius: 4px; font-size: 11px;">${item.week}주차</span>
+                                <strong style="color: var(--text-bright);">${item.dateStr}</strong>
+                                <span style="color: var(--text-sub); font-size: 11px;">(${item.hours}시간, ${item.timeRange})</span>
+                            </div>
+                            <span style="color: #94a3b8; font-size: 11px;">📍 ${item.room}</span>
+                        `;
+                        upEl.appendChild(row);
+                    });
+                }
+            }
+
             const ptsEl = document.getElementById('mBookPoints');
             ptsEl.innerHTML = '';
             info.points.forEach(p => {
@@ -2378,18 +2683,38 @@
         }
 
         /* ===== 🌙 다크/라이트 모드 토글 ===== */
-        function toggleTheme() {
-            const isLight = document.body.classList.toggle('light');
-            const btn = document.getElementById('themeBtn');
-            btn.textContent = isLight ? '🌙 다크 모드' : '☀️ 라이트 모드';
-            localStorage.setItem('dco_theme', isLight ? 'light' : 'dark');
-        }
-        (function initTheme() {
-            const saved = localStorage.getItem('dco_theme');
-            if (saved === 'light') {
-                document.body.classList.add('light');
-                document.getElementById('themeBtn').textContent = '🌙 다크 모드';
+        function syncThemeUI(isLight) {
+            const floatBtn = document.getElementById("themeFloatingBtn");
+            if (floatBtn) {
+                floatBtn.innerHTML = isLight ? "☀️" : "🌙";
+                floatBtn.title = isLight ? "다크 모드로 전환" : "라이트 모드로 전환";
             }
+            if (typeof mermaid !== "undefined" && typeof mermaidInitialized !== "undefined" && mermaidInitialized) {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: isLight ? "default" : "dark",
+                    themeVariables: {
+                        darkMode: !isLight,
+                        background: isLight ? "#ffffff" : "#0f172a"
+                    }
+                });
+                renderMermaidDiagrams();
+            }
+        }
+
+        function toggleTheme() {
+            const isLight = document.body.classList.toggle("light");
+            localStorage.setItem("dco_theme", isLight ? "light" : "dark");
+            syncThemeUI(isLight);
+        }
+
+        (function initTheme() {
+            const saved = localStorage.getItem("dco_theme");
+            const isLight = (saved === "light");
+            if (isLight) {
+                document.body.classList.add("light");
+            }
+            document.addEventListener("DOMContentLoaded", () => syncThemeUI(isLight));
         })();
 
         /* ===== ⏰ 실시간 시계 & 현재 수업 하이라이트 ===== */
@@ -2424,26 +2749,57 @@
                 `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')} (${days[now.getDay()]})`;
 
             const nowMin = now.getHours() * 60 + now.getMinutes();
-            const badge = document.getElementById('currentSubjectBadge');
+            const minInHour = now.getMinutes();
+            const badge = document.getElementById("currentSubjectBadge");
             let matched = null;
+            let isLunch = false;
+
             for (const s of todayScheduleMap) {
-                if (s.label === '점심시간') continue;
-                const [sh, sm] = s.start.split(':').map(Number);
-                const [eh, em] = s.end.split(':').map(Number);
-                if (nowMin >= sh*60+sm && nowMin < eh*60+em) { matched = s; break; }
+                const [sh, sm] = s.start.split(":").map(Number);
+                const [eh, em] = s.end.split(":").map(Number);
+                if (nowMin >= sh * 60 + sm && nowMin < eh * 60 + em) {
+                    if (s.label === "점심시간") {
+                        isLunch = true;
+                    } else {
+                        matched = s;
+                    }
+                    break;
+                }
             }
-            if (matched) {
-                badge.style.display = 'inline-block';
-                badge.textContent = `🔴 수업 중: ${matched.label}`;
-                badge.style.color = matched.color;
-                badge.style.borderColor = matched.color;
-                badge.style.background = matched.color + '1a';
-                document.querySelectorAll('.today-item').forEach(el => {
-                    el.classList.toggle('active-class', el.dataset.subject === matched.label);
+
+            if (isLunch) {
+                badge.style.display = "inline-block";
+                badge.textContent = "🍱 점심 식사 시간 (12:00 ~ 13:00)";
+                badge.style.color = "#94a3b8";
+                badge.style.borderColor = "#64748b";
+                badge.style.background = "rgba(148, 163, 184, 0.15)";
+                document.querySelectorAll(".today-item").forEach(el => el.classList.remove("active-class"));
+            } else if (matched) {
+                badge.style.display = "inline-block";
+                // 50분 수업, 10분 휴게 시간 판정
+                if (minInHour < 50) {
+                    const remainClass = 50 - minInHour;
+                    badge.textContent = `🔴 수업 중: ${matched.label} (수업 종료까지 ${remainClass}분)`;
+                    badge.style.color = matched.color;
+                    badge.style.borderColor = matched.color;
+                    badge.style.background = matched.color + "1a";
+                } else {
+                    const remainBreak = 60 - minInHour;
+                    badge.textContent = `☕ 쉬는 시간: 10분 휴게 중 (다음 교시까지 ${remainBreak}분)`;
+                    badge.style.color = "#10b981";
+                    badge.style.borderColor = "#10b981";
+                    badge.style.background = "rgba(16, 185, 129, 0.15)";
+                }
+                document.querySelectorAll(".today-item").forEach(el => {
+                    el.classList.toggle("active-class", el.dataset.subject === matched.label);
                 });
             } else {
-                badge.style.display = 'none';
-                document.querySelectorAll('.today-item').forEach(el => el.classList.remove('active-class'));
+                badge.style.display = "inline-block";
+                badge.textContent = "🌙 일과 외 / 자율 학습 시간";
+                badge.style.color = "#64748b";
+                badge.style.borderColor = "#475569";
+                badge.style.background = "rgba(100, 116, 139, 0.1)";
+                document.querySelectorAll(".today-item").forEach(el => el.classList.remove("active-class"));
             }
         }
         setInterval(updateClock, 1000);
@@ -3161,19 +3517,61 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
         }
 
         /* 🗂️ 하단 실무 트레이닝 탭 전환 함수 */
-        function switchHubTab(tabName) {
-            const tabs = ['card', 'quiz', 'memo'];
-            tabs.forEach(t => {
-                const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
-                const pane = document.getElementById('hubPane' + t.charAt(0).toUpperCase() + t.slice(1));
-                if (btn) btn.classList.toggle('active', t === tabName);
-                if (pane) pane.style.display = (t === tabName) ? 'block' : 'none';
-            });
-        }
-    
-        </script>
+        let mermaidInitialized = false;
 
-    <!-- 🤖 DCO AI 챗봇 UI HTML -->
+        async function renderMermaidDiagrams() {
+            if (typeof mermaid === "undefined") return;
+            const isLight = document.body.classList.contains("light");
+            try {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: isLight ? "default" : "dark",
+                    themeVariables: {
+                        darkMode: !isLight,
+                        background: isLight ? "#ffffff" : "#0f172a"
+                    }
+                });
+                mermaidInitialized = true;
+
+                const containers = [
+                    { src: "#mermaidContainer1 .mermaid-src", target: "mermaidTarget1", id: "svg-diagram-1" },
+                    { src: "#mermaidContainer2 .mermaid-src", target: "mermaidTarget2", id: "svg-diagram-2" }
+                ];
+
+                for (const item of containers) {
+                    const srcEl = document.querySelector(item.src);
+                    const targetEl = document.getElementById(item.target);
+                    if (srcEl && targetEl) {
+                        const code = srcEl.textContent.trim();
+                        const uniqueId = item.id + "-" + Date.now();
+                        const { svg } = await mermaid.render(uniqueId, code);
+                        targetEl.innerHTML = svg;
+                    }
+                }
+            } catch (err) {
+                console.error("Mermaid render error:", err);
+            }
+        }
+
+        function switchHubTab(tabName) {
+            const tabs = ["card", "quiz", "memo", "arch"];
+            tabs.forEach(t => {
+                const btn = document.getElementById("tabBtn" + t.charAt(0).toUpperCase() + t.slice(1));
+                const pane = document.getElementById("hubPane" + t.charAt(0).toUpperCase() + t.slice(1));
+                if (btn) btn.classList.toggle("active", t === tabName);
+                if (pane) pane.style.display = (t === tabName) ? "block" : "none";
+            });
+
+            if (tabName === "arch") {
+                setTimeout(() => {
+                    renderMermaidDiagrams();
+                }, 50);
+            }
+        }
+    </script>
+
+    <!-- 🌓 플로팅 테마 전환 및 🤖 DCO AI 챗봇 UI HTML -->
+    <button class="theme-floating-fab" id="themeFloatingBtn" onclick="toggleTheme()" title="다크/라이트 모드 전환">🌙</button>
     <button class="chat-fab" id="chatFab" onclick="toggleChat()" title="DCO AI 어시스턴트">💬</button>
 
     <div class="chat-window" id="chatWindow">
