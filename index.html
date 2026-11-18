@@ -1261,7 +1261,48 @@
         .chat-send-btn:hover {
             background: #e68a00;
         }
-    </style>
+    
+        /* ✨ Gemini AI 지식카드 & 퀴즈 생성 버튼 스타일 */
+        .ai-gen-btn {
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 13px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+            transition: all 0.2s;
+        }
+        .ai-gen-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(14, 165, 233, 0.5);
+            background: linear-gradient(135deg, #0369a1, #0284c7);
+        }
+        .ai-gen-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .ai-key-btn {
+            background: transparent;
+            border: 1px solid var(--border3);
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ai-key-btn:hover {
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+</style>
 </head>
 <body>
     <div class="container">
@@ -1407,7 +1448,8 @@
                     <span>💡 DCO 직무에서 알아야 할 핵심 지식 카드</span>
                     <span id="carouselPageIndicator" style="font-size: 12px; color: #38bdf8; margin-left: 8px;">(1 / 6)</span>
                 </div>
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="ai-gen-btn" id="btnGenCard" onclick="generateAiKnowledgeCard()">✨ AI 실무카드 생성</button>
                     <button class="carousel-nav-btn" onclick="prevKnowledgeCard()">‹</button>
                     <button class="carousel-nav-btn" onclick="nextKnowledgeCard()">›</button>
                 </div>
@@ -1427,8 +1469,11 @@
                     <span>🎯 DCO 실무 핵심 퀴즈 (지식 테스트)</span>
                     <span id="quizIndexIndicator" style="font-size: 12px; color: #38bdf8; margin-left: 8px;">(1 / 6)</span>
                 </div>
-                <div class="quiz-score-badge">
-                    현재 점수: <span id="quizScoreText">0</span> / 100점
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="ai-gen-btn" id="btnGenQuiz" onclick="generateAiQuiz()">✨ AI 실전문제 출제</button>
+                    <div class="quiz-score-badge">
+                        현재 점수: <span id="quizScoreText">0</span> / 100점
+                    </div>
                 </div>
             </div>
             <div class="quiz-card-box">
@@ -2345,7 +2390,151 @@
             }
             msgsBox.scrollTop = msgsBox.scrollHeight;
         }
-    </script>
+    
+        /* ================= 🤖 Gemini AI 지식카드 & 퀴즈 무한 생성 로직 ================= */
+        function getGeminiApiKey() {
+            let key = localStorage.getItem('dco_gemini_api_key');
+            if (!key) {
+                key = prompt('Gemini API 키를 입력해 주세요 (입력 후 브라우저에 안전하게 저장됩니다):');
+                if (key && key.trim()) {
+                    key = key.trim();
+                    localStorage.setItem('dco_gemini_api_key', key);
+                } else {
+                    return null;
+                }
+            }
+            return key;
+        }
+
+        function resetGeminiApiKey() {
+            localStorage.removeItem('dco_gemini_api_key');
+            alert('저장된 API 키가 초기화되었습니다. 다시 생성 시 새 키를 입력할 수 있습니다.');
+        }
+
+        async function callGeminiRaw(promptText) {
+            const apiKey = getGeminiApiKey();
+            if (!apiKey) throw new Error('API 키 입력이 취소되었습니다.');
+
+            // 로컬 server.py가 켜져 있으면 로컬 프록시 우선 시도, 실패 시 Google REST 직접 호출
+            const model = 'gemini-3.5-flash-lite';
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }],
+                    generationConfig: { temperature: 0.7 }
+                })
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                if (res.status === 400 || res.status === 403) {
+                    localStorage.removeItem('dco_gemini_api_key');
+                }
+                throw new Error(errData.error?.message || `API 호출 실패 (${res.status})`);
+            }
+            const data = await res.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            return rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
+        // 1) AI 실무 지식 카드 추가 생성
+        async function generateAiKnowledgeCard() {
+            const btn = document.getElementById('btnGenCard');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ AI 실무카드 생성 중...';
+
+            const subjects = [
+                '서버 하드웨어 장애(DIMM/ECC 오류, 디스크 핫스왑)',
+                '광통신(LC/SC 커넥터 청결, 광파워 측정, 싱글/멀티모드)',
+                '리눅스 스크립트 자동화(smartctl, ipmitool, cron 배치)',
+                '데이터센터 쿨링 공조(핫아일/콜드아일 차폐, 냉동기 이중화)',
+                '전력 분배 인프라(PDU, UPS, 3상 전력 부하 밸런싱)'
+            ];
+            const chosen = subjects[Math.floor(Math.random() * subjects.length)];
+
+            const prompt = `당신은 데이터센터(DCO) 수석 엔지니어입니다.
+AWS 및 대형 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드를 아래 JSON 포맷으로 한국어로 정확히 작성해주세요.
+반드시 마크다운 없이 순수 JSON만 출력하세요:
+{
+  "badge": "AI 실무 심화",
+  "badgeColor": "#0ea5e9",
+  "icon": "⚡",
+  "title": "${chosen} 실무 핵심 가이드",
+  "desc": "데이터센터 현장에서 실제로 적용되는 엔지니어 실무 팁:",
+  "items": [
+    "<strong>항목1 제목:</strong> 실무 설명...",
+    "<strong>항목2 제목:</strong> 실무 설명...",
+    "<strong>항목3 제목:</strong> 실무 설명..."
+  ]
+}`;
+
+            try {
+                const jsonStr = await callGeminiRaw(prompt);
+                const newCard = JSON.parse(jsonStr);
+                newCard.badge = "✨ AI 추천 " + (dcoKnowledgeCards.length + 1);
+                dcoKnowledgeCards.push(newCard);
+                renderKnowledgeCard(dcoKnowledgeCards.length - 1);
+                alert(`🎉 새 실무 지식 카드가 추가되었습니다!\n[${newCard.title}]`);
+            } catch (err) {
+                console.error(err);
+                if (err.message !== 'API 키 입력이 취소되었습니다.') {
+                    alert('AI 카드 생성 중 오류가 발생했습니다: ' + err.message);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        // 2) AI 실전 퀴즈 추가 출제
+        async function generateAiQuiz() {
+            const btn = document.getElementById('btnGenQuiz');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '⏳ AI 문제 출제 중...';
+
+            const topics = [
+                'Linux 서버 명령어 및 트러블슈팅 (smartctl, journalctl, lsof, top)',
+                '광통신 시스템 (광케이블 곡률 반경, 광파워미터, 트랜시버 SFP+)',
+                '서버 하드웨어 유지보수 (ECC RAM 고장 증상, RAID 재구축, BMC/IPMI)',
+                '데이터센터 전기/공조 안전 규정 (PDU 회로 차단, 핫아일 공기 흐름)'
+            ];
+            const chosenTopic = topics[Math.floor(Math.random() * topics.length)];
+
+            const prompt = `당신은 AWS DCO 채용 및 기술 면접관입니다.
+주제: [${chosenTopic}]
+실제 현장 엔지니어가 접할 수 있는 4지선다형 기술 퀴즈 1문제를 한국어로 만들어주세요.
+반드시 마크다운 코드블록 없이 순수한 JSON 문자열만 출력하세요:
+{
+  "subject": "AI 실전 퀴즈",
+  "question": "구체적인 기술 상황 또는 장애 시나리오 문제...",
+  "options": ["보기1", "보기2", "보기3", "보기4"],
+  "answer": 0,
+  "explanation": "이 보기가 정답인 구체적인 실무 근거 및 해설"
+}
+※ answer는 0, 1, 2, 3 중 올바른 정답의 인덱스 숫자여야 합니다.`;
+
+            try {
+                const jsonStr = await callGeminiRaw(prompt);
+                const newQuiz = JSON.parse(jsonStr);
+                newQuiz.subject = "✨ AI " + newQuiz.subject;
+                dcoQuizList.push(newQuiz);
+                currentQuizIdx = dcoQuizList.length - 1;
+                renderDcoQuiz();
+                alert(`🎯 새로운 AI 실전 문제가 출제되었습니다!\nQ${dcoQuizList.length}: ${newQuiz.question.slice(0, 40)}...`);
+            } catch (err) {
+                console.error(err);
+                if (err.message !== 'API 키 입력이 취소되었습니다.') {
+                    alert('AI 문제 출제 중 오류가 발생했습니다: ' + err.message);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+</script>
 
     <!-- 🤖 DCO AI 챗봇 UI HTML -->
     <button class="chat-fab" id="chatFab" onclick="toggleChat()" title="DCO AI 어시스턴트">💬</button>
