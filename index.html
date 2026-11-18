@@ -292,6 +292,35 @@
         }
 
         /* 🖥️ 와이드 스크린 2단 메인 레이아웃 (좌측 메인 대시보드 + 우측 실무 트레이닝 허브) */
+        
+        /* ⚙️ 프로젝트 아키텍처 와이드 뷰 모드 */
+        .main-wide-grid.full-arch-mode {
+            grid-template-columns: 1fr !important;
+        }
+        .main-wide-grid.full-arch-mode .main-wide-left {
+            display: none !important;
+        }
+        .main-wide-grid.full-arch-mode .main-wide-right {
+            width: 100% !important;
+        }
+        .arch-3col-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px;
+            align-items: stretch;
+            margin-bottom: 8px;
+        }
+        @media (max-width: 1200px) {
+            .arch-3col-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .arch-3col-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .main-wide-grid {
             display: grid;
             grid-template-columns: minmax(0, 1.75fr) minmax(380px, 1fr);
@@ -1179,14 +1208,14 @@
         .memo-item {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
             background: var(--bg-row, rgba(255,255,255,0.03));
             border: 1px solid var(--border2);
-            border-left: 4px solid #0ea5e9;
-            border-radius: 8px;
-            padding: 12px 14px;
-            transition: all 0.2s;
-            gap: 12px;
+            border-left: 3px solid #0ea5e9;
+            border-radius: 6px;
+            padding: 7px 10px;
+            transition: all 0.15s;
+            gap: 10px;
         }
         .memo-item:hover {
             background: var(--bg-hover, rgba(255,255,255,0.06));
@@ -1196,16 +1225,15 @@
             flex: 1;
             white-space: pre-wrap;
             word-break: break-word;
-            font-size: 13.5px;
-            line-height: 1.5;
+            font-size: 12px;
+            line-height: 1.4;
             color: var(--text-main);
         }
         .memo-item-meta {
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 6px;
-            min-width: 90px;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
         }
         .memo-item-date {
             font-size: 11px;
@@ -2043,12 +2071,14 @@
                                 </div>
                             </div>
 
-                            <!-- 다이어그램 1: 전체 시스템 구성도 -->
-                            <div style="margin-bottom: 16px;">
-                                <div style="font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
-                                    <span>🌐</span> 시스템 상호작용 구성도
-                                </div>
-                                <div class="mermaid-container" style="background: var(--bg-inner); border: 1px solid var(--border2); border-radius: 8px; padding: 12px; overflow-x: auto; min-height: 220px;" id="mermaidContainer1">
+                            <!-- 3분할 나란히 배치: [시스템 구성도] | [AI 시퀀스] | [패치 내역] -->
+                            <div class="arch-3col-grid">
+                                <!-- 1열: 시스템 상호작용 구성도 -->
+                                <div style="display: flex; flex-direction: column;">
+                                    <div style="font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+                                        <span>🌐</span> 시스템 상호작용 구성도
+                                    </div>
+                                    <div class="mermaid-container" style="background: var(--bg-inner); border: 1px solid var(--border2); border-radius: 8px; padding: 10px; overflow-x: auto; flex: 1; min-height: 320px; display: flex; align-items: center; justify-content: center;" id="mermaidContainer1">
     <pre class="mermaid-src" style="display:none;">
 flowchart LR
     subgraph Client ["🖥️ 브라우저 (Frontend)"]
@@ -2084,16 +2114,16 @@ flowchart LR
     class Gemini gStyle;
     linkStyle default stroke:#475569,stroke-width:2.5px;
     </pre>
-    <div class="mermaid-target" id="mermaidTarget1"></div>
+    <div class="mermaid-target" id="mermaidTarget1" style="width: 100%;"></div>
 </div>
-                            </div>
-
-                            <!-- 다이어그램 2: AI 질문 처리 시퀀스 -->
-                            <div>
-                                <div style="font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
-                                    <span>🔄</span> AI 챗봇 실시간 처리 흐름 (시퀀스)
                                 </div>
-                                <div class="mermaid-container" style="background: var(--bg-inner); border: 1px solid var(--border2); border-radius: 8px; padding: 12px; overflow-x: auto; min-height: 220px;" id="mermaidContainer2">
+
+                                <!-- 2열: AI 챗봇 시퀀스 흐름도 -->
+                                <div style="display: flex; flex-direction: column;">
+                                    <div style="font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+                                        <span>🔄</span> AI 챗봇 실시간 시퀀스
+                                    </div>
+                                    <div class="mermaid-container" style="background: var(--bg-inner); border: 1px solid var(--border2); border-radius: 8px; padding: 10px; overflow-x: auto; flex: 1; min-height: 320px; display: flex; align-items: center; justify-content: center;" id="mermaidContainer2">
     <pre class="mermaid-src" style="display:none;">
 sequenceDiagram
     autonumber
@@ -2115,21 +2145,23 @@ sequenceDiagram
     Server-->>UI: { reply: "AI 생성 답변" }
     UI->>User: 채팅창 말풍선 렌더링
     </pre>
-    <div class="mermaid-target" id="mermaidTarget2"></div>
+    <div class="mermaid-target" id="mermaidTarget2" style="width: 100%;"></div>
 </div>
-                            </div>
-                            <!-- 3) 🚀 GitHub 커밋 & 패치 이력 (Patch Notes) -->
-                            <div style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <div style="font-size: 13px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
-                                        <span>🚀</span> 최신 깃허브 패치 내역 (Release & Patch Log)
-                                    </div>
-                                    <a href="https://github.com/pghpgh0136/dco-dashboard/commits/main" target="_blank" style="font-size: 11px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 4px;">
-                                        <span>GitHub 전체 보기</span> ➔
-                                    </a>
                                 </div>
-                                <div id="gitPatchList" style="display: flex; flex-direction: column; gap: 7px; max-height: 240px; overflow-y: auto; padding-right: 4px;">
-                                    <!-- JS에서 동적 렌더링 -->
+
+                                <!-- 3열: 🚀 GitHub 커밋 & 패치 이력 -->
+                                <div style="display: flex; flex-direction: column;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <div style="font-size: 12px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 5px;">
+                                            <span>🚀</span> 깃허브 패치 내역
+                                        </div>
+                                        <a href="https://github.com/pghpgh0136/dco-dashboard/commits/main" target="_blank" style="font-size: 10.5px; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 3px;">
+                                            <span>GitHub</span> ➔
+                                        </a>
+                                    </div>
+                                    <div id="gitPatchList" style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 4px; flex: 1;">
+                                        <!-- JS에서 동적 렌더링 -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2995,23 +3027,22 @@ sequenceDiagram
 
             container.innerHTML = list.map(m => {
                 const safeText = m.text
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
-                const subjHtml = m.subject ? `<span class="memo-subject-tag">📚 ${m.subject}</span>` : '';
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+                const subjHtml = m.subject ? `<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-right: 6px;">${m.subject}</span>` : "";
                 return `
                     <div class="memo-item">
                         <div class="memo-item-content">
-                            <div style="margin-bottom: 5px;">${subjHtml}</div>
-                            <div>${safeText}</div>
+                            <span>${subjHtml}</span><span>${safeText}</span>
                         </div>
                         <div class="memo-item-meta">
-                            <span class="memo-item-date">${m.date}</span>
-                            <button class="memo-del-btn" onclick="deleteMemo(${m.id})">🗑 삭제</button>
+                            <span class="memo-item-date" style="font-size: 10px;">${m.date}</span>
+                            <button class="memo-del-btn" style="padding: 2px 6px; font-size: 10px;" onclick="deleteMemo(${m.id})">✕</button>
                         </div>
                     </div>
                 `;
-            }).join('');
+            }).join("");
         }
 
         // Ctrl + Enter 키로 메모 빠른 저장
@@ -3717,20 +3748,50 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             });
         }
 
+        let activeHubTab = "card";
+
         function switchHubTab(tabName) {
-            if (tabName === "arch") renderGitPatchList();
             const tabs = ["card", "quiz", "memo", "arch"];
+            const wideGrid = document.querySelector(".main-wide-grid");
+
+            // 이미 활성화된 탭을 한 번 더 누르면 접기/최소화
+            if (activeHubTab === tabName) {
+                activeHubTab = null;
+                tabs.forEach(t => {
+                    const btn = document.getElementById("tabBtn" + t.charAt(0).toUpperCase() + t.slice(1));
+                    const pane = document.getElementById("hubPane" + t.charAt(0).toUpperCase() + t.slice(1));
+                    if (btn) btn.classList.remove("active");
+                    if (pane) pane.style.display = "none";
+                });
+                if (wideGrid) wideGrid.classList.remove("full-arch-mode");
+                return;
+            }
+
+            // 새로운 탭 활성화
+            activeHubTab = tabName;
+
+            // 아키텍처 탭일 때는 전체 대시보드를 와이드하게 확장
+            if (wideGrid) {
+                if (tabName === "arch") {
+                    wideGrid.classList.add("full-arch-mode");
+                } else {
+                    wideGrid.classList.remove("full-arch-mode");
+                }
+            }
+
             tabs.forEach(t => {
                 const btn = document.getElementById("tabBtn" + t.charAt(0).toUpperCase() + t.slice(1));
                 const pane = document.getElementById("hubPane" + t.charAt(0).toUpperCase() + t.slice(1));
-                if (btn) btn.classList.toggle("active", t === tabName);
-                if (pane) pane.style.display = (t === tabName) ? "block" : "none";
+                const isCur = (t === tabName);
+                if (btn) btn.classList.toggle("active", isCur);
+                if (pane) pane.style.display = isCur ? "block" : "none";
             });
 
             if (tabName === "arch") {
+                renderGitPatchList();
                 setTimeout(() => {
                     renderMermaidDiagrams();
-                }, 50);
+                }, 60);
             }
         }
     </script>
