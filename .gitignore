@@ -7,3 +7,4 @@ Desktop.ini
 .venv/
 __pycache__/
 
+auth_data.json

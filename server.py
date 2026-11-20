@@ -1,11 +1,14 @@
 import os
 import json
+import uuid
+import datetime
 import urllib.request
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
+DATA_FILE = BASE_DIR / "auth_data.json"
 
 # 상위 폴더 및 my-gemini-chat 또는 현재 폴더의 .env 탐색
 env_paths = [
@@ -28,19 +31,88 @@ SYSTEM_INSTRUCTION = """
 전문적이고 친절하며 안전 규정을 최우선으로 하는 간결하고 명확한 조언을 제공하세요.
 """
 
-# 현재 실제 정상 작동하는 최신 Gemini 모델 우선순위
 CANDIDATE_MODELS = [
-    "gemini-3.1-flash-lite",
-    "gemini-3.1-flash-lite-preview",
-    "gemini-3.8-flash"
+    "gemini-3.8-flash",
+    "gemini-flash-latest",
+    "gemini-3.1-flash-lite"
 ]
+
+def load_data():
+    if not DATA_FILE.exists():
+        default_data = {
+            "users": {
+                "admin": {
+                    "username": "admin",
+                    "password": "admin123",
+                    "name": "관리자",
+                    "role": "admin",
+                    "api_usage": 0,
+                    "created_at": "2026-11-20 09:00:00"
+                },
+                "user1": {
+                    "username": "user1",
+                    "password": "1234",
+                    "name": "홍길동 엔지니어",
+                    "role": "user",
+                    "api_usage": 0,
+                    "created_at": "2026-11-20 09:00:00"
+                }
+            },
+            "sessions": {},
+            "logs": []
+        }
+        save_data(default_data)
+        return default_data
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"users": {}, "sessions": {}, "logs": []}
+
+def save_data(data):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def log_activity(username, action, details="", is_api=False, extra=None):
+    data = load_data()
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # API 사용량 카운트
+    if is_api and username in data["users"]:
+        data["users"][username]["api_usage"] = data["users"][username].get("api_usage", 0) + 1
+        
+    log_entry = {
+        "id": str(uuid.uuid4())[:8],
+        "username": username or "익명",
+        "name": data["users"].get(username, {}).get("name", "익명/게스트"),
+        "role": data["users"].get(username, {}).get("role", "guest"),
+        "action": action,
+        "details": details,
+        "is_api": is_api,
+        "extra": extra,
+        "timestamp": now_str
+    }
+    # 최근 1000개 보관
+    data["logs"].insert(0, log_entry)
+    if len(data["logs"]) > 1000:
+        data["logs"] = data["logs"][:1000]
+        
+    save_data(data)
+
+def get_current_user(token):
+    if not token:
+        return None
+    data = load_data()
+    username = data.get("sessions", {}).get(token)
+    if username and username in data.get("users", {}):
+        return data["users"][username]
+    return None
 
 def generate_gemini(prompt_text, system_instruction=None):
     if not api_key:
         raise Exception(".env 파일에 GEMINI_API_KEY가 설정되지 않았습니다.")
     
     last_error = None
-    # 503 또는 일시 장애 시 다음 모델로 즉시 자동 시도
     for model in CANDIDATE_MODELS:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -62,7 +134,6 @@ def generate_gemini(prompt_text, system_instruction=None):
                 return raw.replace("```json", "").replace("```", "").strip()
         except urllib.error.HTTPError as e:
             last_error = e
-            # 503(Service Unavailable) 또는 404/429인 경우 다른 모델로 재시도
             continue
         except Exception as e:
             last_error = e
@@ -77,12 +148,60 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         super().end_headers()
 
     def do_OPTIONS(self):
         self.send_response(200)
         self.end_headers()
+
+    def get_token_from_header(self):
+        auth_header = self.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            return auth_header[7:].strip()
+        return None
+
+    def do_GET(self):
+        # 관리자용 데이터 조회 API
+        if self.path == "/api/admin/usage":
+            token = self.get_token_from_header()
+            user = get_current_user(token)
+            if not user or user.get("role") != "admin":
+                self.send_json_error(403, "관리자 권한이 필요합니다.")
+                return
+            
+            data = load_data()
+            users_list = []
+            for u in data["users"].values():
+                users_list.append({
+                    "username": u["username"],
+                    "name": u["name"],
+                    "role": u["role"],
+                    "api_usage": u.get("api_usage", 0),
+                    "created_at": u.get("created_at", "-")
+                })
+            
+            self.send_json({
+                "users": users_list,
+                "logs": data.get("logs", [])[:150]
+            })
+            return
+            
+        elif self.path == "/api/auth/me":
+            token = self.get_token_from_header()
+            user = get_current_user(token)
+            if not user:
+                self.send_json_error(401, "인증되지 않은 사용자입니다.")
+                return
+            self.send_json({
+                "username": user["username"],
+                "name": user["name"],
+                "role": user["role"],
+                "api_usage": user.get("api_usage", 0)
+            })
+            return
+
+        super().do_GET()
 
     def do_POST(self):
         content_length = int(self.headers.get("Content-Length", 0))
@@ -92,14 +211,105 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
         except Exception:
             req_data = {}
 
+        token = self.get_token_from_header()
+        user = get_current_user(token)
+        username = user["username"] if user else (req_data.get("username") or "anonymous")
+
+        # 0-1) 로그인
+        if self.path == "/api/auth/login":
+            u_name = req_data.get("username", "").strip()
+            u_pass = req_data.get("password", "").strip()
+            data = load_data()
+            if u_name in data["users"] and data["users"][u_name]["password"] == u_pass:
+                user_info = data["users"][u_name]
+                new_token = str(uuid.uuid4())
+                data["sessions"][new_token] = u_name
+                save_data(data)
+                
+                log_activity(u_name, "로그인", f"로그인 성공 (IP: {self.client_address[0]})", is_api=False)
+                self.send_json({
+                    "token": new_token,
+                    "user": {
+                        "username": user_info["username"],
+                        "name": user_info["name"],
+                        "role": user_info["role"],
+                        "api_usage": user_info.get("api_usage", 0)
+                    }
+                })
+            else:
+                self.send_json_error(401, "아이디 또는 비밀번호가 올바르지 않습니다.")
+            return
+
+        # 0-2) 로그아웃
+        elif self.path == "/api/auth/logout":
+            if token:
+                data = load_data()
+                if token in data["sessions"]:
+                    un = data["sessions"].pop(token)
+                    save_data(data)
+                    log_activity(un, "로그아웃", "로그아웃 완료", is_api=False)
+            self.send_json({"success": True})
+            return
+
+        # 0-3) 회원가입
+        elif self.path == "/api/auth/register":
+            u_name = req_data.get("username", "").strip()
+            u_pass = req_data.get("password", "").strip()
+            u_display = req_data.get("name", "").strip() or u_name
+            if not u_name or not u_pass:
+                self.send_json_error(400, "아이디와 비밀번호를 입력해주세요.")
+                return
+            data = load_data()
+            if u_name in data["users"]:
+                self.send_json_error(400, "이미 존재하는 아이디입니다.")
+                return
+            data["users"][u_name] = {
+                "username": u_name,
+                "password": u_pass,
+                "name": u_display,
+                "role": "user",
+                "api_usage": 0,
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            new_token = str(uuid.uuid4())
+            data["sessions"][new_token] = u_name
+            save_data(data)
+            log_activity(u_name, "회원가입", "신규 계정 등록 및 자동 로그인", is_api=False)
+            self.send_json({
+                "token": new_token,
+                "user": {
+                    "username": u_name,
+                    "name": u_display,
+                    "role": "user",
+                    "api_usage": 0
+                }
+            })
+            return
+
+        # 0-4) 기능 사용 일반 로깅 (페이지 탭 이동, 계산기 클릭, 메모 작성 등)
+        elif self.path == "/api/log-action":
+            action = req_data.get("action", "기능 사용")
+            details = req_data.get("details", "")
+            extra = req_data.get("extra")
+            log_activity(username, action, details, is_api=False, extra=extra)
+            self.send_json({"success": True})
+            return
+
         # 1) AI 챗봇
-        if self.path == "/api/chat":
+        elif self.path == "/api/chat":
             user_msg = req_data.get("message", "").strip()
             if not user_msg:
                 self.send_json_error(400, "질문 내용을 입력해 주세요.")
                 return
             try:
                 reply = generate_gemini(user_msg, SYSTEM_INSTRUCTION)
+                log_activity(
+                    username,
+                    "AI 챗봇 대화",
+                    f"Q: {user_msg}",
+                    is_api=True,
+                    extra={"question": user_msg, "reply": reply}
+                )
                 self.send_json({"reply": reply})
             except Exception as e:
                 self.send_json_error(500, f"API 오류: {str(e)}")
@@ -126,6 +336,14 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             try:
                 card_json_str = generate_gemini(prompt)
                 card_data = json.loads(card_json_str)
+                card_title = card_data.get("title", chosen)
+                log_activity(
+                    username,
+                    "AI 지식카드 생성",
+                    f"생성 카드: [{card_title}] (주제: {chosen})",
+                    is_api=True,
+                    extra={"topic": chosen, "card": card_data}
+                )
                 self.send_json(card_data)
             except Exception as e:
                 self.send_json_error(500, f"지식 카드 생성 오류: {str(e)}")
@@ -148,6 +366,14 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             try:
                 quiz_json_str = generate_gemini(prompt)
                 quiz_data = json.loads(quiz_json_str)
+                quiz_q = quiz_data.get("question", "")
+                log_activity(
+                    username,
+                    "AI 실전퀴즈 생성",
+                    f"생성 퀴즈: {quiz_q[:70]}... (주제: {chosen_topic})",
+                    is_api=True,
+                    extra={"topic": chosen_topic, "quiz": quiz_data}
+                )
                 self.send_json(quiz_data)
             except Exception as e:
                 self.send_json_error(500, f"퀴즈 출제 오류: {str(e)}")
@@ -166,6 +392,8 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
 def run(port=None):
     if port is None:
         port = int(os.getenv("PORT", 8080))
+    # 초기 파일 로드
+    load_data()
     server_address = ("", port)
     httpd = HTTPServer(server_address, DCODashboardHandler)
     print(f"🚀 DCO 대시보드 & AI 서버 실행 중 (포트: {port})")
