@@ -8,3 +8,4 @@ Desktop.ini
 __pycache__/
 
 auth_data.json
+.agents/

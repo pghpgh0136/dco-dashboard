@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "auth_data.json"
 
-# 상위 폴더 및 my-gemini-chat 또는 현재 폴더의 .env 탐색
 env_paths = [
     BASE_DIR / ".env",
     BASE_DIR.parent / "my-gemini-chat" / ".env",
@@ -37,6 +36,9 @@ CANDIDATE_MODELS = [
     "gemini-3.1-flash-lite"
 ]
 
+def get_today_str():
+    return datetime.datetime.now().strftime("%Y-%m-%d")
+
 def load_data():
     if not DATA_FILE.exists():
         default_data = {
@@ -47,6 +49,7 @@ def load_data():
                     "name": "관리자",
                     "role": "admin",
                     "api_usage": 0,
+                    "daily_usage": {get_today_str(): 0},
                     "created_at": "2026-11-20 09:00:00"
                 },
                 "user1": {
@@ -55,32 +58,60 @@ def load_data():
                     "name": "홍길동 엔지니어",
                     "role": "user",
                     "api_usage": 0,
+                    "daily_usage": {get_today_str(): 0},
                     "created_at": "2026-11-20 09:00:00"
                 }
             },
             "sessions": {},
+            "user_data": {},  # username: {"memos": [], "cards": [], "quizzes": [], "chat": []}
             "logs": []
         }
         save_data(default_data)
         return default_data
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            d = json.load(f)
+            if "user_data" not in d:
+                d["user_data"] = {}
+            return d
     except Exception:
-        return {"users": {}, "sessions": {}, "logs": []}
+        return {"users": {}, "sessions": {}, "user_data": {}, "logs": []}
 
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+def check_and_increment_daily_usage(username):
+    data = load_data()
+    user = data.get("users", {}).get(username)
+    if not user:
+        return False, "인증되지 않은 사용자입니다. 로그인 후 이용해주세요.", 0, 5
+
+    # 관리자는 제한 없음
+    if user.get("role") == "admin":
+        today = get_today_str()
+        daily = user.setdefault("daily_usage", {})
+        daily[today] = daily.get(today, 0) + 1
+        user["api_usage"] = user.get("api_usage", 0) + 1
+        save_data(data)
+        return True, "", daily[today], 9999
+
+    today = get_today_str()
+    daily = user.setdefault("daily_usage", {})
+    current_today_count = daily.get(today, 0)
+
+    if current_today_count >= 5:
+        return False, f"오늘 API 일일 호출 한도(5회)를 모두 소진하셨습니다. (내일 0시에 초기화됩니다)", current_today_count, 5
+
+    daily[today] = current_today_count + 1
+    user["api_usage"] = user.get("api_usage", 0) + 1
+    save_data(data)
+    return True, "", daily[today], 5
+
 def log_activity(username, action, details="", is_api=False, extra=None):
     data = load_data()
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # API 사용량 카운트
-    if is_api and username in data["users"]:
-        data["users"][username]["api_usage"] = data["users"][username].get("api_usage", 0) + 1
-        
     log_entry = {
         "id": str(uuid.uuid4())[:8],
         "username": username or "익명",
@@ -92,7 +123,6 @@ def log_activity(username, action, details="", is_api=False, extra=None):
         "extra": extra,
         "timestamp": now_str
     }
-    # 최근 1000개 보관
     data["logs"].insert(0, log_entry)
     if len(data["logs"]) > 1000:
         data["logs"] = data["logs"][:1000]
@@ -162,7 +192,7 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
         return None
 
     def do_GET(self):
-        # 관리자용 데이터 조회 API
+        # 1. 관리자용 전체 사용량 및 로그 조회
         if self.path == "/api/admin/usage":
             token = self.get_token_from_header()
             user = get_current_user(token)
@@ -171,34 +201,62 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
                 return
             
             data = load_data()
+            today = get_today_str()
             users_list = []
             for u in data["users"].values():
+                today_used = u.get("daily_usage", {}).get(today, 0)
                 users_list.append({
                     "username": u["username"],
                     "name": u["name"],
                     "role": u["role"],
                     "api_usage": u.get("api_usage", 0),
+                    "today_usage": today_used,
                     "created_at": u.get("created_at", "-")
                 })
             
             self.send_json({
                 "users": users_list,
-                "logs": data.get("logs", [])[:150]
+                "logs": data.get("logs", [])[:200],
+                "all_user_data": data.get("user_data", {})  # 관리자는 전체 유저 저장 데이터 열람 가능
             })
             return
             
+        # 2. 내 정보 조회 (일일 남은 횟수 포함)
         elif self.path == "/api/auth/me":
             token = self.get_token_from_header()
             user = get_current_user(token)
             if not user:
                 self.send_json_error(401, "인증되지 않은 사용자입니다.")
                 return
+            today = get_today_str()
+            today_used = user.get("daily_usage", {}).get(today, 0)
+            max_limit = 9999 if user.get("role") == "admin" else 5
             self.send_json({
                 "username": user["username"],
                 "name": user["name"],
                 "role": user["role"],
-                "api_usage": user.get("api_usage", 0)
+                "api_usage": user.get("api_usage", 0),
+                "today_usage": today_used,
+                "daily_limit": max_limit
             })
+            return
+
+        # 3. 로그인한 유저의 개인 저장 데이터 조회 (메모, 생성된 지식카드, 생성된 퀴즈, 챗봇 기록)
+        elif self.path == "/api/user/data":
+            token = self.get_token_from_header()
+            user = get_current_user(token)
+            if not user:
+                self.send_json_error(401, "로그인이 필요한 서비스입니다.")
+                return
+            
+            data = load_data()
+            u_data = data.get("user_data", {}).get(user["username"], {
+                "memos": [],
+                "cards": [],
+                "quizzes": [],
+                "chat": []
+            })
+            self.send_json(u_data)
             return
 
         super().do_GET()
@@ -226,6 +284,10 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
                 data["sessions"][new_token] = u_name
                 save_data(data)
                 
+                today = get_today_str()
+                today_used = user_info.get("daily_usage", {}).get(today, 0)
+                max_limit = 9999 if user_info.get("role") == "admin" else 5
+
                 log_activity(u_name, "로그인", f"로그인 성공 (IP: {self.client_address[0]})", is_api=False)
                 self.send_json({
                     "token": new_token,
@@ -233,7 +295,9 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
                         "username": user_info["username"],
                         "name": user_info["name"],
                         "role": user_info["role"],
-                        "api_usage": user_info.get("api_usage", 0)
+                        "api_usage": user_info.get("api_usage", 0),
+                        "today_usage": today_used,
+                        "daily_limit": max_limit
                     }
                 })
             else:
@@ -257,36 +321,72 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
             u_pass = req_data.get("password", "").strip()
             u_display = req_data.get("name", "").strip() or u_name
             if not u_name or not u_pass:
-                self.send_json_error(400, "아이디와 비밀번호를 입력해주세요.")
+                self.send_json_error(400, "아이디와 비밀번호를 모두 입력해주세요.")
+                return
+            if len(u_name) < 3:
+                self.send_json_error(400, "아이디는 최소 3자 이상이어야 합니다.")
                 return
             data = load_data()
             if u_name in data["users"]:
                 self.send_json_error(400, "이미 존재하는 아이디입니다.")
                 return
+            
+            today = get_today_str()
             data["users"][u_name] = {
                 "username": u_name,
                 "password": u_pass,
                 "name": u_display,
                 "role": "user",
                 "api_usage": 0,
+                "daily_usage": {today: 0},
                 "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            # 개인 데이터 저장소 초기화
+            if "user_data" not in data:
+                data["user_data"] = {}
+            data["user_data"][u_name] = {
+                "memos": [],
+                "cards": [],
+                "quizzes": [],
+                "chat": []
             }
             new_token = str(uuid.uuid4())
             data["sessions"][new_token] = u_name
             save_data(data)
-            log_activity(u_name, "회원가입", "신규 계정 등록 및 자동 로그인", is_api=False)
+            log_activity(u_name, "회원가입", "신규 회원가입 및 자동 로그인", is_api=False)
             self.send_json({
                 "token": new_token,
                 "user": {
                     "username": u_name,
                     "name": u_display,
                     "role": "user",
-                    "api_usage": 0
+                    "api_usage": 0,
+                    "today_usage": 0,
+                    "daily_limit": 5
                 }
             })
             return
 
-        # 0-4) 기능 사용 일반 로깅 (페이지 탭 이동, 계산기 클릭, 메모 작성 등)
+        # 0-4) 유저 개인 데이터 동기화 (메모 저장/삭제 등)
+        elif self.path == "/api/user/save-data":
+            if not user:
+                self.send_json_error(401, "로그인이 필요한 서비스입니다.")
+                return
+            data_type = req_data.get("type")  # memos, cards, quizzes, chat
+            items = req_data.get("items")
+            if data_type in ["memos", "cards", "quizzes", "chat"] and items is not None:
+                data = load_data()
+                u_data = data.setdefault("user_data", {}).setdefault(user["username"], {
+                    "memos": [], "cards": [], "quizzes": [], "chat": []
+                })
+                u_data[data_type] = items
+                save_data(data)
+                self.send_json({"success": True})
+            else:
+                self.send_json_error(400, "잘못된 데이터 형식입니다.")
+            return
+
+        # 0-5) 기능 사용 일반 로깅
         elif self.path == "/api/log-action":
             action = req_data.get("action", "기능 사용")
             details = req_data.get("details", "")
@@ -295,27 +395,62 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
             self.send_json({"success": True})
             return
 
-        # 1) AI 챗봇
+        # 1) AI 챗봇 (가입 유저만 + 하루 5회 제한)
         elif self.path == "/api/chat":
+            if not user:
+                self.send_json_error(401, "비회원은 AI 챗봇을 이용할 수 없습니다. 로그인 후 이용해주세요.")
+                return
+
+            ok, err_msg, used_count, limit = check_and_increment_daily_usage(user["username"])
+            if not ok:
+                self.send_json_error(429, err_msg)
+                return
+
             user_msg = req_data.get("message", "").strip()
             if not user_msg:
                 self.send_json_error(400, "질문 내용을 입력해 주세요.")
                 return
             try:
                 reply = generate_gemini(user_msg, SYSTEM_INSTRUCTION)
+                
+                # 유저 개인 저장소에 챗봇 대화 추가
+                data = load_data()
+                u_chat = data.setdefault("user_data", {}).setdefault(user["username"], {}).setdefault("chat", [])
+                chat_entry = {
+                    "id": str(uuid.uuid4())[:8],
+                    "question": user_msg,
+                    "reply": reply,
+                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                u_chat.append(chat_entry)
+                save_data(data)
+
                 log_activity(
-                    username,
+                    user["username"],
                     "AI 챗봇 대화",
                     f"Q: {user_msg}",
                     is_api=True,
                     extra={"question": user_msg, "reply": reply}
                 )
-                self.send_json({"reply": reply})
+                self.send_json({
+                    "reply": reply,
+                    "today_usage": used_count,
+                    "daily_limit": limit
+                })
             except Exception as e:
                 self.send_json_error(500, f"API 오류: {str(e)}")
 
-        # 2) AI 실무 지식 카드 생성
+        # 2) AI 실무 지식 카드 생성 (가입 유저만 + 하루 5회 제한)
         elif self.path == "/api/generate-card":
+            if not user:
+                self.send_json_error(401, "비회원은 AI 지식카드 생성을 이용할 수 없습니다. 로그인 후 이용해주세요.")
+                return
+
+            ok, err_msg, used_count, limit = check_and_increment_daily_usage(user["username"])
+            if not ok:
+                self.send_json_error(429, err_msg)
+                return
+
             chosen = req_data.get("topic") or "서버 하드웨어 장애(DIMM/ECC 오류, 핫스왑)"
             prompt = f"""당신은 데이터센터(DCO) 수석 엔지니어입니다.
 주제: [{chosen}]
@@ -337,19 +472,40 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 card_json_str = generate_gemini(prompt)
                 card_data = json.loads(card_json_str)
                 card_title = card_data.get("title", chosen)
+                
+                # 유저 개인 저장소에 지식카드 추가
+                data = load_data()
+                u_cards = data.setdefault("user_data", {}).setdefault(user["username"], {}).setdefault("cards", [])
+                card_data["isAi"] = True
+                card_data["id"] = str(uuid.uuid4())[:8]
+                card_data["created_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                u_cards.append(card_data)
+                save_data(data)
+
                 log_activity(
-                    username,
+                    user["username"],
                     "AI 지식카드 생성",
                     f"생성 카드: [{card_title}] (주제: {chosen})",
                     is_api=True,
                     extra={"topic": chosen, "card": card_data}
                 )
+                card_data["today_usage"] = used_count
+                card_data["daily_limit"] = limit
                 self.send_json(card_data)
             except Exception as e:
                 self.send_json_error(500, f"지식 카드 생성 오류: {str(e)}")
 
-        # 3) AI 실무 퀴즈 생성
+        # 3) AI 실무 퀴즈 생성 (가입 유저만 + 하루 5회 제한)
         elif self.path == "/api/generate-quiz":
+            if not user:
+                self.send_json_error(401, "비회원은 AI 퀴즈 생성을 이용할 수 없습니다. 로그인 후 이용해주세요.")
+                return
+
+            ok, err_msg, used_count, limit = check_and_increment_daily_usage(user["username"])
+            if not ok:
+                self.send_json_error(429, err_msg)
+                return
+
             chosen_topic = req_data.get("topic") or "Linux 서버 명령어 및 트러블슈팅 (smartctl, journalctl, lsof, top)"
             prompt = f"""당신은 AWS DCO 채용 및 기술 면접관입니다.
 주제: [{chosen_topic}]
@@ -367,13 +523,25 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 quiz_json_str = generate_gemini(prompt)
                 quiz_data = json.loads(quiz_json_str)
                 quiz_q = quiz_data.get("question", "")
+
+                # 유저 개인 저장소에 퀴즈 추가
+                data = load_data()
+                u_quizzes = data.setdefault("user_data", {}).setdefault(user["username"], {}).setdefault("quizzes", [])
+                quiz_data["isAi"] = True
+                quiz_data["id"] = str(uuid.uuid4())[:8]
+                quiz_data["created_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                u_quizzes.append(quiz_data)
+                save_data(data)
+
                 log_activity(
-                    username,
+                    user["username"],
                     "AI 실전퀴즈 생성",
                     f"생성 퀴즈: {quiz_q[:70]}... (주제: {chosen_topic})",
                     is_api=True,
                     extra={"topic": chosen_topic, "quiz": quiz_data}
                 )
+                quiz_data["today_usage"] = used_count
+                quiz_data["daily_limit"] = limit
                 self.send_json(quiz_data)
             except Exception as e:
                 self.send_json_error(500, f"퀴즈 출제 오류: {str(e)}")
@@ -392,7 +560,6 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
 def run(port=None):
     if port is None:
         port = int(os.getenv("PORT", 8080))
-    # 초기 파일 로드
     load_data()
     server_address = ("", port)
     httpd = HTTPServer(server_address, DCODashboardHandler)

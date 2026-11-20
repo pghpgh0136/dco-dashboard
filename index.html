@@ -2046,11 +2046,12 @@
         <div class="auth-bar">
             <div class="auth-user-pill" id="authUserPill">
                 <span id="authStatusIcon">👤</span>
-                <span id="authUserName">게스트 (비로그인)</span>
+                <span id="authUserName">게스트 (비회원)</span>
                 <span class="auth-user-badge auth-badge-guest" id="authUserBadge">GUEST</span>
-                <span id="authUsageWrap" style="display:none; font-size:11px; opacity:0.8;">(API 사용: <strong id="authUserUsage">0</strong>회)</span>
+                <span id="authUsageWrap" style="font-size:11px; opacity:0.9;"><span id="authUserUsage"></span></span>
             </div>
             <button class="auth-btn auth-btn-admin" id="btnAdminModal" style="display:none;" onclick="openAdminModal()">⚙️ 관리자 대시보드</button>
+            <button class="auth-btn" id="btnRegisterAction" onclick="openRegisterModal()" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399;">회원가입</button>
             <button class="auth-btn" id="btnAuthAction" onclick="handleAuthButtonClick()">로그인</button>
         </div>
 
@@ -2113,9 +2114,9 @@
                                     <div class="day-column-header">
                                         <div class="day-column-title">
                                             <span>📌 오늘</span>
-                                            <span class="day-tag today">11/18 (수)</span>
+                                            <span class="day-tag today" id="todayHeaderTag">11/20 (금)</span>
                                         </div>
-                                        <span style="font-size: 11px; color: #38bdf8; font-weight: 700;">8시간 수업</span>
+                                        <span id="todayHeaderHours" style="font-size: 11px; color: #38bdf8; font-weight: 700;">8시간 수업</span>
                                     </div>
                                     <div class="today-schedule-list" id="todayScheduleList">
                                         <!-- JS에서 동적 주입 -->
@@ -2126,10 +2127,10 @@
                                 <div class="day-column-box">
                                     <div class="day-column-header">
                                         <div class="day-column-title">
-                                            <span>🔮 내일</span>
-                                            <span class="day-tag tomorrow">11/19 (목)</span>
+                                            <span>🔮 다음 수업일</span>
+                                            <span class="day-tag tomorrow" id="tomorrowHeaderTag">11/23 (월)</span>
                                         </div>
-                                        <span style="font-size: 11px; color: #c084fc; font-weight: 700;">8시간 수업</span>
+                                        <span id="tomorrowHeaderHours" style="font-size: 11px; color: #c084fc; font-weight: 700;">8시간 수업</span>
                                     </div>
                                     <div class="today-schedule-list" id="tomorrowScheduleList">
                                         <!-- JS에서 동적 주입 -->
@@ -2489,6 +2490,9 @@ sequenceDiagram
     </div>
 
     <script>
+        // 🔐 현재 로그인 사용자 전역 상태 (최상단 선언으로 TDZ 에러 방지)
+        let currentUser = null;
+
         // 📚 구글 시트 '기본 안내사항' 및 '평가 안내' 탭에 정확히 명시된 공식 교재 및 시수 데이터
         const officialSubjectData = {
             "Datacenter Overview": {
@@ -2642,21 +2646,35 @@ sequenceDiagram
         ];
 
         function loadSavedAiCards() {
+            if (!currentUser) return [];
+            const key = 'dco_ai_cards_' + currentUser.username;
             try {
-                return JSON.parse(localStorage.getItem('dco_ai_cards') || '[]');
+                return JSON.parse(localStorage.getItem(key) || '[]');
             } catch (e) {
                 return [];
             }
         }
         function saveAiCard(card) {
+            if (!currentUser) return;
             const saved = loadSavedAiCards();
             saved.push(card);
-            localStorage.setItem('dco_ai_cards', JSON.stringify(saved));
+            const key = 'dco_ai_cards_' + currentUser.username;
+            localStorage.setItem(key, JSON.stringify(saved));
+            syncUserDataToServer('cards', saved);
         }
 
         // 전체 카드 목록 (기본 카드 + 로컬에 저장된 AI 카드)
-        let dcoKnowledgeCards = [...baseDcoKnowledgeCards, ...loadSavedAiCards()];
+        let dcoKnowledgeCards = [...baseDcoKnowledgeCards];
         let currentCardIndex = 0;
+
+        function refreshUserCards() {
+            const userAiCards = loadSavedAiCards();
+            dcoKnowledgeCards = [...baseDcoKnowledgeCards, ...userAiCards];
+            if (currentCardIndex >= dcoKnowledgeCards.length) {
+                currentCardIndex = Math.max(0, dcoKnowledgeCards.length - 1);
+            }
+            renderKnowledgeCard(currentCardIndex);
+        }
 
         function renderKnowledgeCard(index) {
             if (index < 0) index = 0;
@@ -2702,8 +2720,61 @@ sequenceDiagram
             renderKnowledgeCard(nextIdx);
         }
 
+        // 오늘 날짜 기준 과목별 이수 시간 동적 계산 함수
+        function updateCompletedHoursFromSchedule() {
+            const now = new Date();
+            const curM = now.getMonth() + 1;
+            const curD = now.getDate();
+            const todayInt = curM * 100 + curD;
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+
+            // 모든 과목의 이수 시간을 0으로 초기화
+            for (const sName in officialSubjectData) {
+                officialSubjectData[sName].completedHours = 0;
+            }
+
+            if (typeof scheduleData === "undefined") return;
+
+            for (const [wkKey, wkData] of Object.entries(scheduleData)) {
+                const dates = wkData.dates;
+                for (let dayIdx = 0; dayIdx < dates.length; dayIdx++) {
+                    const dateStr = dates[dayIdx];
+                    const mMatch = dateStr.match(/(\d+)\/(\d+)/);
+                    if (!mMatch) continue;
+                    const month = parseInt(mMatch[1], 10);
+                    const day = parseInt(mMatch[2], 10);
+                    const dateInt = month * 100 + day;
+
+                    const allSlots = [...(wkData.am || []), ...(wkData.pm || [])];
+                    for (const slot of allSlots) {
+                        const item = slot.items[dayIdx];
+                        if (!item) continue;
+                        const sName = item[0] || "";
+                        if (!officialSubjectData[sName]) continue;
+
+                        const [startTime, endTime] = slot.time.split(" - ");
+                        const [sh, sm] = startTime.split(":").map(Number);
+                        const [eh, em] = endTime.split(":").map(Number);
+                        const slotEndMin = eh * 60 + em;
+
+                        // 과거 날짜이거나, 오늘 날짜인데 수업 종료 시간이 지났으면 이수 완료로 산정
+                        if (dateInt < todayInt) {
+                            officialSubjectData[sName].completedHours++;
+                        } else if (dateInt === todayInt) {
+                            if (nowMin >= slotEndMin) {
+                                officialSubjectData[sName].completedHours++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 과목별 남은 시간 현황판 렌더링
         function renderSubjectHoursGrid() {
+            // 오늘 날짜 및 현재 시간에 맞춰 실시간 이수 시수 자동 계산
+            updateCompletedHoursFromSchedule();
+
             const grid = document.getElementById('subjectHoursGrid');
             grid.innerHTML = '';
 
@@ -2756,49 +2827,235 @@ sequenceDiagram
 
         // 오늘 및 내일 수업 섹션 렌더링
         function initTodaySection() {
-            // 오늘 (11/18 수): Scripting and Automation (함월관 4층 안전시스템실)
-            const todayListEl = document.getElementById('todayScheduleList');
-            if (todayListEl) {
-                todayListEl.innerHTML = `
-                    <div class="today-item" data-subject="Scripting and Automation" onclick="openBookModal('Scripting and Automation', '함월관 4층 안전시스템실')" style="padding: 8px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">09:00 - 12:00</div>
-                        <div class="today-subject badge-auto" style="font-size: 12px;">오전: Scripting (3h)</div>
-                        <div class="today-room">📍 함월관 4층 안전시스템실</div>
-                    </div>
-                    <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default; padding: 6px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">12:00 - 13:00</div>
-                        <div class="today-subject" style="color: #94a3b8; font-size: 12px;">🍱 점심 식사 (구내식당)</div>
-                        <div class="today-room" style="color: #94a3b8; background: rgba(255,255,255,0.05);">-</div>
-                    </div>
-                    <div class="today-item" data-subject="Scripting and Automation" onclick="openBookModal('Scripting and Automation', '함월관 4층 안전시스템실')" style="padding: 8px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">13:00 - 18:00</div>
-                        <div class="today-subject badge-auto" style="font-size: 12px;">오후: Scripting (5h)</div>
-                        <div class="today-room">📍 함월관 4층 안전시스템실</div>
-                    </div>
-                `;
+            const now = new Date();
+            const curM = now.getMonth() + 1;
+            const curD = now.getDate();
+            const todayInt = curM * 100 + curD;
+
+            let todayWeekNum = 2;
+            let todayDayIdx = 4; // 기본 11/20 금
+            let foundToday = false;
+
+            let nextDayWeekNum = 3;
+            let nextDayIdx = 0; // 기본 11/23 월
+            let foundNext = false;
+
+            // scheduleData에서 오늘 날짜와 일치하는 주차 및 요일 인덱스 탐색
+            if (typeof scheduleData !== "undefined") {
+                for (const [wkKey, wkData] of Object.entries(scheduleData)) {
+                    const wNum = parseInt(wkKey, 10);
+                    wkData.dates.forEach((dStr, idx) => {
+                        const m = dStr.match(/(\d+)\/(\d+)/);
+                        if (!m) return;
+                        const dInt = parseInt(m[1], 10) * 100 + parseInt(m[2], 10);
+                        if (dInt === todayInt) {
+                            todayWeekNum = wNum;
+                            todayDayIdx = idx;
+                            foundToday = true;
+                        } else if (dInt > todayInt && !foundNext) {
+                            nextDayWeekNum = wNum;
+                            nextDayIdx = idx;
+                            foundNext = true;
+                        }
+                    });
+                }
             }
 
-            // 내일 (11/19 목): 11/26과 교환되어 오전: 생성형AI 활용 (4h) / 오후: Computer Hardware (4h)
+            // 헤더 날짜 태그 동적 업데이트
+            const todayHeaderTag = document.getElementById('todayHeaderTag');
+            const todayHeaderHours = document.getElementById('todayHeaderHours');
+            const tomorrowHeaderTag = document.getElementById('tomorrowHeaderTag');
+            const tomorrowHeaderHours = document.getElementById('tomorrowHeaderHours');
+
+            const todayData = scheduleData[todayWeekNum];
+            const todayDateStr = todayData?.dates[todayDayIdx] || `${curM}/${curD}`;
+            if (todayHeaderTag) todayHeaderTag.textContent = todayDateStr;
+
+            const nextData = scheduleData[nextDayWeekNum];
+            const nextDateStr = nextData?.dates[nextDayIdx] || "다음 수업일";
+            if (tomorrowHeaderTag) tomorrowHeaderTag.textContent = nextDateStr;
+
+            // 오늘 수업 아이템 구성
+            const todayListEl = document.getElementById('todayScheduleList');
+            if (todayListEl) {
+                const amSlots = todayData ? todayData.am.map(s => ({ time: s.time, item: s.items[todayDayIdx] })) : [];
+                const pmSlots = todayData ? todayData.pm.map(s => ({ time: s.time, item: s.items[todayDayIdx] })) : [];
+
+                if (!todayData || (amSlots.length === 0 && pmSlots.length === 0)) {
+                    todayListEl.innerHTML = `<div style="padding:15px; text-align:center; color:#94a3b8; font-size:12px;">오늘(${todayDateStr})은 예정된 정규 수업이 없습니다. (자율 학습 또는 주말)</div>`;
+                    if (todayHeaderHours) todayHeaderHours.textContent = "수업 없음";
+                } else {
+                    let html = '';
+                    // 오전 합산 렌더링
+                    const amSubj = amSlots[0]?.item[0];
+                    const amRoom = amSlots[0]?.item[1];
+                    const amHours = amSlots.length;
+                    if (amSubj) {
+                        html += `
+                            <div class="today-item" data-subject="${amSubj}" onclick="openBookModal('${amSubj}', '${amRoom}')" style="padding: 8px 12px; gap: 8px;">
+                                <div class="today-time" style="min-width: 80px; font-size: 11px;">09:00 - 12:00</div>
+                                <div class="today-subject ${getSubjectClass(amSubj)}" style="font-size: 12px;">오전: ${amSubj} (${amHours}h)</div>
+                                <div class="today-room">📍 ${amRoom}</div>
+                            </div>
+                        `;
+                    }
+
+                    // 점심시간
+                    html += `
+                        <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default; padding: 6px 12px; gap: 8px;">
+                            <div class="today-time" style="min-width: 80px; font-size: 11px;">12:00 - 13:00</div>
+                            <div class="today-subject" style="color: #94a3b8; font-size: 12px;">🍱 점심 식사 (구내식당)</div>
+                            <div class="today-room" style="color: #94a3b8; background: rgba(255,255,255,0.05);">-</div>
+                        </div>
+                    `;
+
+                    // 오후 슬롯 그룹화 렌더링 (과목이 다를 수 있음)
+                    let pmGroups = [];
+                    pmSlots.forEach(slot => {
+                        const sName = slot.item[0];
+                        const sRoom = slot.item[1];
+                        const last = pmGroups[pmGroups.length - 1];
+                        if (last && last.name === sName && last.room === sRoom) {
+                            last.end = slot.time.split(" - ")[1];
+                            last.hours++;
+                        } else {
+                            pmGroups.push({
+                                name: sName,
+                                room: sRoom,
+                                start: slot.time.split(" - ")[0],
+                                end: slot.time.split(" - ")[1],
+                                hours: 1
+                            });
+                        }
+                    });
+
+                    pmGroups.forEach(g => {
+                        html += `
+                            <div class="today-item" data-subject="${g.name}" onclick="openBookModal('${g.name}', '${g.room}')" style="padding: 8px 12px; gap: 8px;">
+                                <div class="today-time" style="min-width: 80px; font-size: 11px;">${g.start} - ${g.end}</div>
+                                <div class="today-subject ${getSubjectClass(g.name)}" style="font-size: 12px;">오후: ${g.name} (${g.hours}h)</div>
+                                <div class="today-room">📍 ${g.room}</div>
+                            </div>
+                        `;
+                    });
+
+                    todayListEl.innerHTML = html;
+                    if (todayHeaderHours) todayHeaderHours.textContent = `${amHours + pmSlots.length}시간 수업`;
+                }
+            }
+
+            // 다음 수업일 구성
             const tomorrowListEl = document.getElementById('tomorrowScheduleList');
             if (tomorrowListEl) {
-                tomorrowListEl.innerHTML = `
-                    <div class="today-item" data-subject="생성형AI 활용" onclick="openBookModal('생성형AI 활용', '06호관 2층 AI프로그램실')" style="border-left-color: #ec4899; padding: 8px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">09:00 - 13:00</div>
-                        <div class="today-subject badge-ai" style="font-size: 12px;">오전: 생성형AI 활용 (4h)</div>
-                        <div class="today-room">📍 06호관 2층 AI프로그램실</div>
-                    </div>
-                    <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default; padding: 6px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">13:00 - 14:00</div>
-                        <div class="today-subject" style="color: #94a3b8; font-size: 12px;">🍱 점심 식사 (구내식당)</div>
-                        <div class="today-room" style="color: #94a3b8; background: rgba(255,255,255,0.05);">-</div>
-                    </div>
-                    <div class="today-item" data-subject="Computer Hardware" onclick="openBookModal('Computer Hardware', '06호관 2층 안전진단계측실')" style="border-left-color: #f59e0b; padding: 8px 12px; gap: 8px;">
-                        <div class="today-time" style="min-width: 80px; font-size: 11px;">14:00 - 18:00</div>
-                        <div class="today-subject badge-hw" style="font-size: 12px;">오후: Computer Hardware (4h)</div>
-                        <div class="today-room">📍 06호관 2층 안전진단계측실</div>
-                    </div>
-                `;
+                const nextAmSlots = nextData ? nextData.am.map(s => ({ time: s.time, item: s.items[nextDayIdx] })) : [];
+                const nextPmSlots = nextData ? nextData.pm.map(s => ({ time: s.time, item: s.items[nextDayIdx] })) : [];
+
+                if (!nextData || (nextAmSlots.length === 0 && nextPmSlots.length === 0)) {
+                    tomorrowListEl.innerHTML = `<div style="padding:15px; text-align:center; color:#94a3b8; font-size:12px;">예정된 다음 수업이 없습니다.</div>`;
+                    if (tomorrowHeaderHours) tomorrowHeaderHours.textContent = "-";
+                } else {
+                    let html = '';
+                    const amSubj = nextAmSlots[0]?.item[0];
+                    const amRoom = nextAmSlots[0]?.item[1];
+                    const amHours = nextAmSlots.length;
+                    if (amSubj) {
+                        html += `
+                            <div class="today-item" data-subject="${amSubj}" onclick="openBookModal('${amSubj}', '${amRoom}')" style="padding: 8px 12px; gap: 8px;">
+                                <div class="today-time" style="min-width: 80px; font-size: 11px;">09:00 - 12:00</div>
+                                <div class="today-subject ${getSubjectClass(amSubj)}" style="font-size: 12px;">오전: ${amSubj} (${amHours}h)</div>
+                                <div class="today-room">📍 ${amRoom}</div>
+                            </div>
+                        `;
+                    }
+
+                    html += `
+                        <div class="today-item" style="border-left-color: #64748b; background: rgba(255,255,255,0.02); cursor: default; padding: 6px 12px; gap: 8px;">
+                            <div class="today-time" style="min-width: 80px; font-size: 11px;">12:00 - 13:00</div>
+                            <div class="today-subject" style="color: #94a3b8; font-size: 12px;">🍱 점심 식사 (구내식당)</div>
+                            <div class="today-room" style="color: #94a3b8; background: rgba(255,255,255,0.05);">-</div>
+                        </div>
+                    `;
+
+                    let pmGroups = [];
+                    nextPmSlots.forEach(slot => {
+                        const sName = slot.item[0];
+                        const sRoom = slot.item[1];
+                        const last = pmGroups[pmGroups.length - 1];
+                        if (last && last.name === sName && last.room === sRoom) {
+                            last.end = slot.time.split(" - ")[1];
+                            last.hours++;
+                        } else {
+                            pmGroups.push({
+                                name: sName,
+                                room: sRoom,
+                                start: slot.time.split(" - ")[0],
+                                end: slot.time.split(" - ")[1],
+                                hours: 1
+                            });
+                        }
+                    });
+
+                    pmGroups.forEach(g => {
+                        html += `
+                            <div class="today-item" data-subject="${g.name}" onclick="openBookModal('${g.name}', '${g.room}')" style="padding: 8px 12px; gap: 8px;">
+                                <div class="today-time" style="min-width: 80px; font-size: 11px;">${g.start} - ${g.end}</div>
+                                <div class="today-subject ${getSubjectClass(g.name)}" style="font-size: 12px;">오후: ${g.name} (${g.hours}h)</div>
+                                <div class="today-room">📍 ${g.room}</div>
+                            </div>
+                        `;
+                    });
+
+                    tomorrowListEl.innerHTML = html;
+                    if (tomorrowHeaderHours) tomorrowHeaderHours.textContent = `${amHours + nextPmSlots.length}시간 수업`;
+                }
             }
+
+            // 실시간 수업 상태 뱃지용 todayScheduleMap 동적 갱신
+            if (todayData && todayDayIdx >= 0) {
+                todayScheduleMap.length = 0;
+                const amSubj = todayData.am[0]?.items[todayDayIdx][0];
+                if (amSubj) {
+                    todayScheduleMap.push({
+                        start: '09:00', end: '12:00', label: amSubj,
+                        color: getSubjectBadgeColor(amSubj)
+                    });
+                }
+                todayScheduleMap.push({ start: '12:00', end: '13:00', label: '점심시간', color: '#94a3b8' });
+
+                let pmGroups = [];
+                todayData.pm.forEach(slot => {
+                    const sName = slot.items[todayDayIdx][0];
+                    const last = pmGroups[pmGroups.length - 1];
+                    if (last && last.name === sName) {
+                        last.end = slot.time.split(" - ")[1];
+                    } else {
+                        pmGroups.push({
+                            name: sName,
+                            start: slot.time.split(" - ")[0],
+                            end: slot.time.split(" - ")[1]
+                        });
+                    }
+                });
+                pmGroups.forEach(g => {
+                    todayScheduleMap.push({
+                        start: g.start, end: g.end, label: g.name,
+                        color: getSubjectBadgeColor(g.name)
+                    });
+                });
+            }
+        }
+
+        function getSubjectBadgeColor(subjName) {
+            const cls = getSubjectClass(subjName);
+            const colorMap = {
+                'badge-hw':    '#f59e0b',
+                'badge-net':   '#3b82f6',
+                'badge-os':    '#10b981',
+                'badge-auto':  '#a855f7',
+                'badge-ai':    '#ec4899',
+                'badge-optic': '#06b6d4',
+            };
+            return colorMap[cls] || '#38bdf8';
         }
 
         // 시간표 렌더링 데이터 (1~3주차 확정 강의실 및 4~6주차 미정 안내)
@@ -2847,7 +3104,7 @@ sequenceDiagram
                     btnIcon.textContent = "📌";
                     titleEl.textContent = "주차별 종합 시간표 (1~6주차)";
                     iconEl.textContent = "📅";
-                    renderWeek(2); // 현재 2주차 표시
+                    renderWeek(getCurrentWeekAndDay().weekNum); // 현재 주차 동적 표시
                 }, 150);
             } else {
                 fullWrap.classList.add('fade-out');
@@ -2872,18 +3129,50 @@ sequenceDiagram
             }
         }
 
+        // 현재 실제 날짜가 속한 주차와 요일 인덱스 반환
+        function getCurrentWeekAndDay() {
+            const now = new Date();
+            const curM = now.getMonth() + 1;
+            const curD = now.getDate();
+            const todayInt = curM * 100 + curD;
+
+            if (typeof scheduleData !== "undefined") {
+                for (const [wkKey, wkData] of Object.entries(scheduleData)) {
+                    const wNum = parseInt(wkKey, 10);
+                    for (let idx = 0; idx < wkData.dates.length; idx++) {
+                        const m = wkData.dates[idx].match(/(\d+)\/(\d+)/);
+                        if (!m) continue;
+                        const dInt = parseInt(m[1], 10) * 100 + parseInt(m[2], 10);
+                        if (dInt === todayInt) {
+                            return { weekNum: wNum, dayIdx: idx, isFound: true };
+                        }
+                    }
+                }
+            }
+            return { weekNum: 2, dayIdx: 4, isFound: false }; // 기본 2주차 금요일
+        }
+
         function renderWeek(weekNum) {
+            const currentInfo = getCurrentWeekAndDay();
+            const targetWeek = weekNum || currentInfo.weekNum;
+
             document.querySelectorAll('.week-pill').forEach((btn, idx) => {
-                btn.classList.toggle('active', idx + 1 === weekNum);
+                const w = idx + 1;
+                btn.classList.toggle('active', w === targetWeek);
+                if (w === currentInfo.weekNum) {
+                    btn.textContent = `${w}주차 [현재]`;
+                } else {
+                    btn.textContent = `${w}주차`;
+                }
             });
 
-            const data = scheduleData[weekNum];
+            const data = scheduleData[targetWeek];
             const tbody = document.getElementById('scheduleBody');
             tbody.innerHTML = '';
 
-            // 현재 주차(2주차) 및 수요일(오늘: 11/18) 강조
-            const isCurrentWeek = (weekNum === 2);
-            const todayColIndex = 2; // 0:월, 1:화, 2:수, 3:목, 4:금
+            // 현재 주차 및 오늘 요일 동적 판별 및 강조
+            const isCurrentWeek = (targetWeek === currentInfo.weekNum);
+            const todayColIndex = currentInfo.dayIdx;
 
             const headerCells = document.querySelectorAll('#scheduleTable thead th');
             data.dates.forEach((d, i) => {
@@ -2891,6 +3180,7 @@ sequenceDiagram
                 th.textContent = d;
                 if (isCurrentWeek && i === todayColIndex) {
                     th.classList.add('col-today-header');
+                    th.textContent = d + " ● 오늘";
                 } else {
                     th.classList.remove('col-today-header');
                 }
@@ -3226,7 +3516,8 @@ sequenceDiagram
                     badge.style.background = "rgba(16, 185, 129, 0.15)";
                 }
                 document.querySelectorAll(".today-item").forEach(el => {
-                    el.classList.toggle("active-class", el.dataset.subject === matched.label);
+                    const isMatched = (el.dataset?.subject === matched.label) || (el.getAttribute("data-subject") === matched.label);
+                    el.classList.toggle("active-class", !!isMatched);
                 });
             } else {
                 badge.style.display = "inline-block";
@@ -3242,7 +3533,9 @@ sequenceDiagram
 
         /* ===== 📝 나만의 리마인더/메모 개별 저장/관리 로직 ===== */
         function loadMemos() {
-            const raw = localStorage.getItem('dco_memo_list');
+            if (!currentUser) return [];
+            const key = 'dco_memo_list_' + currentUser.username;
+            const raw = localStorage.getItem(key);
             if (raw) {
                 try {
                     return JSON.parse(raw);
@@ -3250,23 +3543,18 @@ sequenceDiagram
                     return [];
                 }
             }
-            // 기존 단일 메모가 있었다면 이전(migration)
-            const oldSingle = localStorage.getItem('dco_memo');
-            if (oldSingle && oldSingle.trim()) {
-                const migrated = [{
-                    id: Date.now(),
-                    text: oldSingle.trim(),
-                    date: '이전 작성 메모'
-                }];
-                localStorage.setItem('dco_memo_list', JSON.stringify(migrated));
-                localStorage.removeItem('dco_memo');
-                return migrated;
-            }
             return [];
         }
 
         function saveMemos(list) {
-            localStorage.setItem('dco_memo_list', JSON.stringify(list));
+            if (!currentUser) return;
+            const key = 'dco_memo_list_' + currentUser.username;
+            localStorage.setItem(key, JSON.stringify(list));
+            syncUserDataToServer('memos', list);
+            renderMemoList();
+        }
+
+        function refreshUserMemos() {
             renderMemoList();
         }
 
@@ -3364,7 +3652,7 @@ sequenceDiagram
         initTodaySection();
         renderSubjectHoursGrid();
         renderKnowledgeCard(0);
-        renderWeek(2);
+        renderWeek();
         renderMemoList();
 
         /* ================= 🌟 DCO 실무 핵심 퀴즈 로직 ================= */
@@ -3414,23 +3702,37 @@ sequenceDiagram
         ];
 
         function loadSavedAiQuizzes() {
+            if (!currentUser) return [];
+            const key = 'dco_ai_quizzes_' + currentUser.username;
             try {
-                return JSON.parse(localStorage.getItem('dco_ai_quizzes') || '[]');
+                return JSON.parse(localStorage.getItem(key) || '[]');
             } catch (e) {
                 return [];
             }
         }
         function saveAiQuiz(quiz) {
+            if (!currentUser) return;
             const saved = loadSavedAiQuizzes();
             saved.push(quiz);
-            localStorage.setItem('dco_ai_quizzes', JSON.stringify(saved));
+            const key = 'dco_ai_quizzes_' + currentUser.username;
+            localStorage.setItem(key, JSON.stringify(saved));
+            syncUserDataToServer('quizzes', saved);
         }
 
         // 전체 퀴즈 목록 (기본 퀴즈 + 로컬에 저장된 AI 퀴즈)
-        let dcoQuizList = [...baseDcoQuizList, ...loadSavedAiQuizzes()];
+        let dcoQuizList = [...baseDcoQuizList];
         let currentQuizIdx = 0;
         let dcoQuizScore = 0;
         let isQuizAnswered = false;
+
+        function refreshUserQuizzes() {
+            const userAiQuizzes = loadSavedAiQuizzes();
+            dcoQuizList = [...baseDcoQuizList, ...userAiQuizzes];
+            if (currentQuizIdx >= dcoQuizList.length) {
+                currentQuizIdx = Math.max(0, dcoQuizList.length - 1);
+            }
+            renderDcoQuiz();
+        }
 
         function initDcoQuiz() {
             currentQuizIdx = 0;
@@ -3542,6 +3844,12 @@ sequenceDiagram
         }
 
         async function sendChatMessage() {
+            if (!currentUser) {
+                alert('비회원은 AI 챗봇을 이용할 수 없습니다.\n우측 상단에서 로그인 또는 회원가입 후 이용해주세요!');
+                openLoginModal();
+                return;
+            }
+
             const input = document.getElementById('chatInput');
             const msg = input.value.trim();
             if (!msg) return;
@@ -3698,6 +4006,11 @@ sequenceDiagram
 
         // 1) AI 실무 지식 카드 추가 생성
         async function generateAiKnowledgeCard() {
+            if (!currentUser) {
+                alert('비회원은 AI 지식카드 생성을 이용할 수 없습니다.\n로그인 또는 회원가입 후 이용해주세요!');
+                openLoginModal();
+                return;
+            }
             const btn = document.getElementById('btnGenCard');
             const originalText = btn.textContent;
             btn.disabled = true;
@@ -3753,6 +4066,11 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
 
         // 2) AI 실전 퀴즈 추가 출제
         async function generateAiQuiz() {
+            if (!currentUser) {
+                alert('비회원은 AI 퀴즈 생성을 이용할 수 없습니다.\n로그인 또는 회원가입 후 이용해주세요!');
+                openLoginModal();
+                return;
+            }
             const btn = document.getElementById('btnGenQuiz');
             const originalText = btn.textContent;
             btn.disabled = true;
@@ -3822,6 +4140,12 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
         }
 
         async function sendChatMessage() {
+            if (!currentUser) {
+                alert('비회원은 AI 챗봇을 이용할 수 없습니다.\n우측 상단에서 로그인 또는 회원가입 후 이용해주세요!');
+                openLoginModal();
+                return;
+            }
+
             const input = document.getElementById('chatInput');
             const msg = input.value.trim();
             if (!msg) return;
@@ -4130,7 +4454,6 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
         }
 
         /* ================= 🔐 사용자 인증 & 관리자 대시보드 로직 ================= */
-        let currentUser = null;
 
         function getAuthHeaders() {
             const token = localStorage.getItem('dco_auth_token');
@@ -4172,6 +4495,7 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                     const user = await res.json();
                     currentUser = user;
                     renderAuthUI(user);
+                    fetchUserDataFromServer();
                 } else {
                     localStorage.removeItem('dco_auth_token');
                     currentUser = null;
@@ -4188,6 +4512,7 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             const authUsageWrap = document.getElementById('authUsageWrap');
             const authUsageEl = document.getElementById('authUserUsage');
             const btnAuth = document.getElementById('btnAuthAction');
+            const btnRegister = document.getElementById('btnRegisterAction');
             const btnAdmin = document.getElementById('btnAdminModal');
 
             if (!userNameEl) return;
@@ -4197,17 +4522,87 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 userBadgeEl.textContent = user.role.toUpperCase();
                 userBadgeEl.className = 'auth-user-badge ' + (user.role === 'admin' ? 'auth-badge-admin' : 'auth-badge-user');
                 authUsageWrap.style.display = 'inline';
-                authUsageEl.textContent = user.api_usage || 0;
+                const limitText = user.role === 'admin' ? '무제한' : '5회';
+                authUsageEl.innerHTML = `오늘 <span style="color:#38bdf8;">${user.today_usage || 0}</span> / ${limitText} (누적: ${user.api_usage || 0}회)`;
                 btnAuth.textContent = '로그아웃';
+                if (btnRegister) btnRegister.style.display = 'none';
                 btnAdmin.style.display = (user.role === 'admin') ? 'inline-block' : 'none';
             } else {
-                userNameEl.textContent = '게스트 (비로그인)';
+                userNameEl.textContent = '게스트 (비회원)';
                 userBadgeEl.textContent = 'GUEST';
                 userBadgeEl.className = 'auth-user-badge auth-badge-guest';
-                authUsageWrap.style.display = 'none';
+                authUsageWrap.style.display = 'inline';
+                authUsageEl.innerHTML = `<span style="color:#ef4444;">AI 사용 불가 (로그인 필요)</span>`;
                 btnAuth.textContent = '로그인';
+                if (btnRegister) btnRegister.style.display = 'inline-block';
                 btnAdmin.style.display = 'none';
             }
+
+            // 사용자별 데이터 동기화 및 UI 갱신
+            refreshUserCards();
+            refreshUserQuizzes();
+            refreshUserMemos();
+            loadUserChatHistory();
+        }
+
+        async function syncUserDataToServer(type, items) {
+            if (!currentUser) return;
+            const targetUrl = (window.location.protocol === 'file:')
+                ? 'http://localhost:8080/api/user/save-data'
+                : '/api/user/save-data';
+            try {
+                await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ type, items })
+                });
+            } catch (e) {}
+        }
+
+        async function fetchUserDataFromServer() {
+            if (!currentUser) return;
+            const targetUrl = (window.location.protocol === 'file:')
+                ? 'http://localhost:8080/api/user/data'
+                : '/api/user/data';
+            try {
+                const res = await fetch(targetUrl, { headers: getAuthHeaders() });
+                if (res.ok) {
+                    const uData = await res.json();
+                    if (uData.cards) localStorage.setItem('dco_ai_cards_' + currentUser.username, JSON.stringify(uData.cards));
+                    if (uData.quizzes) localStorage.setItem('dco_ai_quizzes_' + currentUser.username, JSON.stringify(uData.quizzes));
+                    if (uData.memos) localStorage.setItem('dco_memo_list_' + currentUser.username, JSON.stringify(uData.memos));
+                    if (uData.chat) localStorage.setItem('dco_chat_history_' + currentUser.username, JSON.stringify(uData.chat));
+                    
+                    refreshUserCards();
+                    refreshUserQuizzes();
+                    refreshUserMemos();
+                    loadUserChatHistory();
+                }
+            } catch (e) {}
+        }
+
+        function loadUserChatHistory() {
+            const msgsBox = document.getElementById('chatMessages');
+            if (!msgsBox) return;
+            msgsBox.innerHTML = '<div class="chat-msg bot">안녕하세요! 🛠️<br>AWS DCO 엔지니어 시니어 어시스턴트입니다.<br>랙/서버 설치, 광케이블링, 전력(PDU/UPS), 쿨링 등 데이터센터 운영에 대해 무엇이든 물어보세요!</div>';
+            
+            if (!currentUser) return;
+            const key = 'dco_chat_history_' + currentUser.username;
+            try {
+                const history = JSON.parse(localStorage.getItem(key) || '[]');
+                history.forEach(c => {
+                    const uEl = document.createElement('div');
+                    uEl.className = 'chat-msg user';
+                    uEl.textContent = c.question;
+                    msgsBox.appendChild(uEl);
+
+                    const bEl = document.createElement('div');
+                    bEl.className = 'chat-msg bot';
+                    bEl.textContent = c.reply;
+                    msgsBox.appendChild(bEl);
+                });
+                msgsBox.scrollTop = msgsBox.scrollHeight;
+            } catch (e) {}
         }
 
         function handleAuthButtonClick() {
@@ -4260,10 +4655,68 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 localStorage.setItem('dco_auth_token', data.token);
                 currentUser = data.user;
                 renderAuthUI(currentUser);
+                fetchUserDataFromServer();
                 closeLoginModal();
-                alert(`환영합니다, ${currentUser.name}님! (${currentUser.role === 'admin' ? '관리자 권한' : '일반 사용자'})`);
+                alert(`환영합니다, ${currentUser.name}님! (${currentUser.role === 'admin' ? '관리자 권한' : '일반 회원: 오늘 5회 이용 가능'})`);
             } catch (err) {
                 alert('로그인 서버 통신 오류: ' + err.message);
+            }
+        }
+
+        function openRegisterModal() {
+            closeLoginModal();
+            const modal = document.getElementById('registerModal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeRegisterModal() {
+            const modal = document.getElementById('registerModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function submitRegister() {
+            const u = document.getElementById('regUsername').value.trim();
+            const n = document.getElementById('regName').value.trim();
+            const p = document.getElementById('regPassword').value.trim();
+            const p2 = document.getElementById('regPasswordConfirm').value.trim();
+
+            if (!u || !p) {
+                alert('아이디와 비밀번호를 모두 입력해주세요.');
+                return;
+            }
+            if (u.length < 3) {
+                alert('아이디는 최소 3자 이상이어야 합니다.');
+                return;
+            }
+            if (p !== p2) {
+                alert('비밀번호가 일치하지 않습니다.');
+                return;
+            }
+
+            const targetUrl = (window.location.protocol === 'file:')
+                ? 'http://localhost:8080/api/auth/register'
+                : '/api/auth/register';
+
+            try {
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, name: n || u, password: p })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || '회원가입에 실패했습니다.');
+                    return;
+                }
+
+                localStorage.setItem('dco_auth_token', data.token);
+                currentUser = data.user;
+                renderAuthUI(currentUser);
+                fetchUserDataFromServer();
+                closeRegisterModal();
+                alert(`🎉 회원가입이 완료되었습니다!\n환영합니다, ${currentUser.name} 엔지니어님! (오늘 AI 일일 5회 제공)`);
+            } catch (err) {
+                alert('회원가입 서버 통신 오류: ' + err.message);
             }
         }
 
@@ -4436,14 +4889,26 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 // 계정별 사용량 렌더링
                 if (usersTableBody) {
                     usersTableBody.innerHTML = '';
+                    const allUserData = data.all_user_data || {};
                     data.users.forEach(u => {
                         const tr = document.createElement('tr');
                         const isAdm = u.role === 'admin';
+                        const uData = allUserData[u.username] || { cards: [], quizzes: [], memos: [], chat: [] };
+                        const limitStr = isAdm ? '무제한' : '5회';
+                        const todayColor = (!isAdm && u.today_usage >= 5) ? '#ef4444' : '#10b981';
+
                         tr.innerHTML = `
                             <td><strong>${u.username}</strong></td>
                             <td>${u.name}</td>
                             <td><span class="auth-user-badge ${isAdm ? 'auth-badge-admin' : 'auth-badge-user'}">${u.role.toUpperCase()}</span></td>
-                            <td><strong style="color: ${u.api_usage > 0 ? '#10b981' : '#94a3b8'}; font-size:14px;">${u.api_usage}회</strong></td>
+                            <td><strong style="color: ${todayColor}; font-size:13px;">${u.today_usage || 0} / ${limitStr}</strong></td>
+                            <td><strong style="color: #94a3b8; font-size:13px;">${u.api_usage || 0}회</strong></td>
+                            <td style="font-size:12px;">
+                                <span>⚡카드: <strong>${uData.cards?.length || 0}</strong></span> |
+                                <span>🎯퀴즈: <strong>${uData.quizzes?.length || 0}</strong></span> |
+                                <span>📝메모: <strong>${uData.memos?.length || 0}</strong></span> |
+                                <span>💬채팅: <strong>${uData.chat?.length || 0}</strong></span>
+                            </td>
                             <td style="color:#94a3b8; font-size:11px;">${u.created_at || '-'}</td>
                         `;
                         usersTableBody.appendChild(tr);
@@ -4517,6 +4982,48 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 </div>
 
                 <button class="auth-btn" style="padding:10px; margin-top:8px; background:#3b82f6; color:#fff; font-size:14px; text-align:center;" onclick="submitLogin()">로그인 완료</button>
+                
+                <div style="text-align:center; font-size:12px; margin-top:6px; color:#94a3b8;">
+                    아직 계정이 없으신가요? <a href="javascript:void(0)" onclick="openRegisterModal()" style="color:#38bdf8; text-decoration:underline;">회원가입 하기</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📝 회원가입 모달 -->
+    <div id="registerModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.65); z-index:99999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div class="modal-box" style="width: 400px; max-width: 92%; padding: 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="margin:0; font-size:17px; display:flex; align-items:center; gap:8px;">📝 신규 엔지니어 회원가입</h3>
+                <button onclick="closeRegisterModal()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">✕</button>
+            </div>
+            
+            <div style="display:flex; flex-direction:column; gap:11px;">
+                <div style="font-size:12px; color:#10b981; background:rgba(16,185,129,0.1); padding:8px 10px; border-radius:6px; border:1px solid rgba(16,185,129,0.3);">
+                    🎁 가입 즉시 <strong>AI 챗봇, 실무 퀴즈, 지식카드</strong>를 하루 5회씩 이용하실 수 있습니다!
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#94a3b8;">아이디 (3자 이상)</label>
+                    <input type="text" id="regUsername" placeholder="사용할 아이디" style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.2); color:#fff; font-size:13px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#94a3b8;">이름 / 닉네임</label>
+                    <input type="text" id="regName" placeholder="예: 김철수 엔지니어" style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.2); color:#fff; font-size:13px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#94a3b8;">비밀번호</label>
+                    <input type="password" id="regPassword" placeholder="비밀번호" style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.2); color:#fff; font-size:13px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#94a3b8;">비밀번호 확인</label>
+                    <input type="password" id="regPasswordConfirm" placeholder="비밀번호 재입력" style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.2); color:#fff; font-size:13px;" onkeydown="if(event.key==='Enter') submitRegister()">
+                </div>
+
+                <button class="auth-btn" style="padding:10px; margin-top:6px; background:#10b981; color:#fff; font-size:14px; text-align:center;" onclick="submitRegister()">회원가입 완료 및 로그인</button>
+                
+                <div style="text-align:center; font-size:12px; margin-top:4px; color:#94a3b8;">
+                    이미 계정이 있으신가요? <a href="javascript:void(0)" onclick="closeRegisterModal(); openLoginModal();" style="color:#38bdf8; text-decoration:underline;">로그인 하기</a>
+                </div>
             </div>
         </div>
     </div>
@@ -4547,7 +5054,9 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                                 <th>아이디</th>
                                 <th>이름</th>
                                 <th>권한</th>
-                                <th>API 호출 횟수</th>
+                                <th>오늘 호출 (한도)</th>
+                                <th>누적 호출</th>
+                                <th>개인 데이터 (카드/퀴즈/메모/채팅)</th>
                                 <th>가입일시</th>
                             </tr>
                         </thead>
