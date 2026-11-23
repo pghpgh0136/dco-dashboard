@@ -2185,19 +2185,19 @@
                                 <div class="overall-prog-dday">종강 예정일: 12/18 (6주)</div>
                             </div>
                             <div class="overall-prog-stats">
-                                <div class="overall-prog-percent">21.3%</div>
+                                <div class="overall-prog-percent" id="overallProgPercent">21.3%</div>
                                 <div class="overall-prog-hours">
-                                    <span>이수 <strong>51시간</strong></span>
+                                    <span>이수 <strong id="overallProgCompleted">51시간</strong></span>
                                     <span style="color: #64748b; margin: 0 4px;">/</span>
-                                    <span>총 <strong>240시간</strong></span>
+                                    <span>총 <strong id="overallProgTotal">240시간</strong></span>
                                 </div>
                             </div>
                             <div class="overall-prog-bar-bg">
-                                <div class="overall-prog-bar-fill" style="width: 21.3%;"></div>
+                                <div class="overall-prog-bar-fill" id="overallProgBarFill" style="width: 21.3%;"></div>
                             </div>
                             <div class="overall-prog-footer">
-                                <span>현재 2주차 진행 중</span>
-                                <span style="color: #38bdf8; font-weight: 700;">잔여 189시간 남음</span>
+                                <span id="overallProgCurWeek">현재 2주차 진행 중</span>
+                                <span style="color: #38bdf8; font-weight: 700;" id="overallProgRemaining">잔여 189시간 남음</span>
                             </div>
                         </div>
 
@@ -2822,6 +2822,64 @@ sequenceDiagram
                     </div>
                 `;
                 grid.appendChild(card);
+            }
+
+            // 🎯 전체 교육 총 진도율 카드 UI 동적 업데이트 (오늘 날짜 및 이수 시수 반영)
+            updateOverallProgressCard();
+        }
+
+        // 전체 총 진도율 카드 업데이트 함수
+        function updateOverallProgressCard() {
+            let totalHours = 0;
+            let completedHours = 0;
+            for (const sName in officialSubjectData) {
+                totalHours += (officialSubjectData[sName].totalHours || 0);
+                completedHours += (officialSubjectData[sName].completedHours || 0);
+            }
+            if (totalHours === 0) totalHours = 240;
+
+            const pct = ((completedHours / totalHours) * 100).toFixed(1);
+            const rem = Math.max(0, totalHours - completedHours);
+
+            const pctEl = document.getElementById('overallProgPercent');
+            const compEl = document.getElementById('overallProgCompleted');
+            const totalEl = document.getElementById('overallProgTotal');
+            const barEl = document.getElementById('overallProgBarFill');
+            const remEl = document.getElementById('overallProgRemaining');
+            const curWkEl = document.getElementById('overallProgCurWeek');
+
+            if (pctEl) pctEl.textContent = `${pct}%`;
+            if (compEl) compEl.textContent = `${completedHours}시간`;
+            if (totalEl) totalEl.textContent = `${totalHours}시간`;
+            if (barEl) barEl.style.width = `${pct}%`;
+            if (remEl) remEl.textContent = `잔여 ${rem}시간 남음`;
+
+            // 현재 주차 계산 (오늘 날짜 기준)
+            if (curWkEl && typeof scheduleData !== 'undefined') {
+                const now = new Date();
+                const curM = now.getMonth() + 1;
+                const curD = now.getDate();
+                const todayInt = curM * 100 + curD;
+                let curWeek = 1;
+
+                for (const [wkKey, wkData] of Object.entries(scheduleData)) {
+                    const wNum = parseInt(wkKey, 10);
+                    if (wkData.dates && wkData.dates.length > 0) {
+                        const firstDate = wkData.dates[0].match(/(\d+)\/(\d+)/);
+                        const lastDate = wkData.dates[wkData.dates.length - 1].match(/(\d+)\/(\d+)/);
+                        if (firstDate && lastDate) {
+                            const startInt = parseInt(firstDate[1], 10) * 100 + parseInt(firstDate[2], 10);
+                            const endInt = parseInt(lastDate[1], 10) * 100 + parseInt(lastDate[2], 10);
+                            if (todayInt >= startInt && todayInt <= endInt) {
+                                curWeek = wNum;
+                                break;
+                            } else if (todayInt > endInt) {
+                                curWeek = Math.min(6, wNum + 1);
+                            }
+                        }
+                    }
+                }
+                curWkEl.textContent = `현재 ${curWeek}주차 진행 중`;
             }
         }
 
