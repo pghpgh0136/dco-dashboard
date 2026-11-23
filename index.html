@@ -196,6 +196,26 @@
             color: #0284c7 !important;
         }
 
+        /* 라이트 모드 AI 학습실 색상 조정 */
+        body.light .ai-study-section {
+            background: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08) !important;
+        }
+        body.light .ai-study-card {
+            background: #f8fafc !important;
+            border-color: #e2e8f0 !important;
+        }
+        body.light .ai-study-card:hover {
+            border-color: #38bdf8 !important;
+            background: #ffffff !important;
+        }
+        body.light .ai-study-status-badge {
+            background: #e2e8f0 !important;
+            color: #475569 !important;
+            border-color: #cbd5e1 !important;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: var(--bg-base);
@@ -331,6 +351,154 @@
             .main-wide-grid {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* 🧠 최상단 AI 학습실 (독립 공간) 스타일 */
+        .ai-study-section {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 18px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            backdrop-filter: blur(8px);
+        }
+        .ai-study-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            gap: 12px;
+        }
+        .ai-study-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .ai-study-badge {
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 9px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .ai-study-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ai-study-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .ai-study-toggle-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-sub);
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .ai-study-toggle-btn:hover {
+            color: var(--text-main);
+            border-color: #38bdf8;
+            background: var(--bg-hover);
+        }
+        .ai-study-toggle-arrow {
+            display: inline-block;
+            transition: transform 0.25s ease;
+            font-size: 10px;
+        }
+        .ai-study-section.expanded .ai-study-toggle-arrow {
+            transform: rotate(180deg);
+        }
+        .ai-study-body {
+            display: none;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px dashed var(--border2);
+            animation: fadeInTab 0.25s ease-out;
+        }
+        .ai-study-section.expanded .ai-study-body {
+            display: block;
+        }
+        .ai-study-features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 900px) {
+            .ai-study-features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 580px) {
+            .ai-study-features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .ai-study-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        .ai-study-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .ai-study-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .ai-study-card-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ai-study-status-badge {
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            white-space: nowrap;
+        }
+        .ai-study-card-desc {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            line-height: 1.45;
         }
 
         /* 메인 히어로 배너 */
@@ -2083,6 +2251,105 @@
                     <div class="live-clock-label" id="liveDate">날짜 로딩 중...</div>
                 </div>
                 <div class="current-subject-badge" id="currentSubjectBadge" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- 🧠 최상단 AI 학습실 (독립 공간: 메모 기반 AI 분석 및 학습 보강) -->
+        <div class="ai-study-section" id="aiStudySection">
+            <div class="ai-study-header" onclick="toggleAiStudyRoom()">
+                <div class="ai-study-title-wrap">
+                    <span class="ai-study-badge">⚡ AI STUDY LAB</span>
+                    <div class="ai-study-title">
+                        <span>🧠 AI 학습실</span>
+                    </div>
+                    <span class="ai-study-subtitle">내 메모를 분석하여 맞춤 퀴즈, 요약, 복습 계획을 제공하는 통합 학습 공간</span>
+                </div>
+                <button class="ai-study-toggle-btn" id="aiStudyToggleBtn" type="button" aria-expanded="false">
+                    <span id="aiStudyToggleText">학습실 열기</span>
+                    <span class="ai-study-toggle-arrow">▼</span>
+                </button>
+            </div>
+
+            <div class="ai-study-body" id="aiStudyBody">
+                <div class="ai-study-features-grid">
+                    <!-- 기능 1: 메모 기반 퀴즈 생성 -->
+                    <div class="ai-study-card">
+                        <div class="ai-study-card-header">
+                            <div class="ai-study-card-title">
+                                <span>🎯</span> 메모 기반 퀴즈 생성
+                            </div>
+                            <span class="ai-study-status-badge">준비 중</span>
+                        </div>
+                        <div class="ai-study-card-desc">
+                            내가 작성한 수업 및 실습 메모 내용을 바탕으로 DCO 실무 맞춤 4지선다 퀴즈를 출제합니다.
+                        </div>
+                    </div>
+
+                    <!-- 기능 2: 메모 요약 및 핵심 개념 추출 -->
+                    <div class="ai-study-card">
+                        <div class="ai-study-card-header">
+                            <div class="ai-study-card-title">
+                                <span>📝</span> 메모 요약 및 핵심 개념
+                            </div>
+                            <span class="ai-study-status-badge">준비 중</span>
+                        </div>
+                        <div class="ai-study-card-desc">
+                            방대하게 적어둔 메모를 3줄 핵심 요약과 핵심 기술 키워드로 깔끔하게 정리합니다.
+                        </div>
+                    </div>
+
+                    <!-- 기능 3: 메모 기반 학습 카드 생성 -->
+                    <div class="ai-study-card">
+                        <div class="ai-study-card-header">
+                            <div class="ai-study-card-title">
+                                <span>💡</span> 메모 기반 학습 카드
+                            </div>
+                            <span class="ai-study-status-badge">준비 중</span>
+                        </div>
+                        <div class="ai-study-card-desc">
+                            필기한 메모의 핵심 노하우를 규격화된 실무 지식 카드로 변환하여 학습 허브에 등록합니다.
+                        </div>
+                    </div>
+
+                    <!-- 기능 4: 과목별 학습 기록 분석 -->
+                    <div class="ai-study-card">
+                        <div class="ai-study-card-header">
+                            <div class="ai-study-card-title">
+                                <span>📊</span> 과목별 학습 기록 분석
+                            </div>
+                            <span class="ai-study-status-badge">준비 중</span>
+                        </div>
+                        <div class="ai-study-card-desc">
+                            과목별 메모 작성 빈도와 학습 활동을 분석하여 보완이 필요한 취약 영역을 진단합니다.
+                        </div>
+                    </div>
+
+                    <!-- 기능 5: 과거 메모와 최근 메모 비교 -->
+                    <div class="ai-study-card">
+                        <div class="ai-study-card-header">
+                            <div class="ai-study-card-title">
+                                <span>🔍</span> 과거 vs 최근 메모 비교
+                            </div>
+                            <span class="ai-study-status-badge">준비 중</span>
+                        </div>
+                        <div class="ai-study-card-desc">
+                            학습 초기 메모와 최근 메모를 비교하여 기술 이해도와 개념의 성장 과정을 분석합니다.
+                        </div>
+                    </div>
+
+                    <!-- 기능 6: 개인 맞춤 복습 계획 -->
+                    <div class="ai-study-card">
+                        <div class="ai-study-card-header">
+                            <div class="ai-study-card-title">
+                                <span>📅</span> 개인 맞춤 복습 계획
+                            </div>
+                            <span class="ai-study-status-badge">준비 중</span>
+                        </div>
+                        <div class="ai-study-card-desc">
+                            망각곡선과 메모 작성일을 고려하여 내일 복습해야 할 최적의 학습 메모를 추천합니다.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -5274,6 +5541,22 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             } catch (err) {
                 if (usersTableBody) usersTableBody.innerHTML = `<tr><td colspan="5" style="color:#ef4444; padding:15px;">오류: ${err.message}</td></tr>`;
                 if (logsTableBody) logsTableBody.innerHTML = `<tr><td colspan="5" style="color:#ef4444; padding:15px;">오류: ${err.message}</td></tr>`;
+            }
+        }
+
+        /* ===== 🧠 최상단 AI 학습실 토글 동작 제어 ===== */
+        function toggleAiStudyRoom() {
+            const section = document.getElementById('aiStudySection');
+            const toggleText = document.getElementById('aiStudyToggleText');
+            const toggleBtn = document.getElementById('aiStudyToggleBtn');
+            if (!section) return;
+
+            const isExpanded = section.classList.toggle('expanded');
+            if (toggleText) {
+                toggleText.textContent = isExpanded ? '학습실 닫기' : '학습실 열기';
+            }
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
             }
         }
 
