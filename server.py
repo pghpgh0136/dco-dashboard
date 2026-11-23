@@ -557,6 +557,69 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
                 self.send_json_error(500, f"사용자 데이터 조회 오류: {str(e)}")
             return
 
+        # 4. GitHub 최신 커밋 패치 내역 조회 (프록시 & 토큰 보안 관리)
+        elif self.path == "/api/git-patches":
+            try:
+                gh_token = os.getenv("GITHUB_TOKEN", "").strip()
+                gh_url = "https://api.github.com/repos/pghpgh0136/dco-dashboard/commits?sha=main&per_page=15"
+                headers = {
+                    "User-Agent": "DCO-Dashboard-App",
+                    "Accept": "application/vnd.github.v3+json"
+                }
+                if gh_token:
+                    headers["Authorization"] = f"Bearer {gh_token}"
+
+                req = urllib.request.Request(gh_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    raw_commits = json.loads(resp.read().decode("utf-8"))
+
+                patches = []
+                for c in raw_commits:
+                    sha_short = c.get("sha", "")[:7]
+                    commit_obj = c.get("commit", {})
+                    author_obj = commit_obj.get("author", {})
+                    author_name = author_obj.get("name", "pghpgh0136")
+                    raw_date = author_obj.get("date", "")
+                    date_str = raw_date[:10] if len(raw_date) >= 10 else "-"
+                    full_msg = commit_obj.get("message", "").strip()
+                    first_line = full_msg.split("\n")[0].strip()
+
+                    tag = "Update"
+                    title = first_line
+                    if ":" in first_line:
+                        prefix, rest = first_line.split(":", 1)
+                        p_lower = prefix.strip().lower()
+                        if "feat" in p_lower:
+                            tag = "Feat"
+                        elif "fix" in p_lower:
+                            tag = "Fix"
+                        elif "docs" in p_lower:
+                            tag = "Docs"
+                        elif "style" in p_lower or "design" in p_lower:
+                            tag = "Style"
+                        elif "deploy" in p_lower:
+                            tag = "Deploy"
+                        elif "init" in p_lower:
+                            tag = "Init"
+                        title = rest.strip()
+
+                    body_lines = [l.strip() for l in full_msg.split("\n")[1:] if l.strip()]
+                    desc = " ".join(body_lines) if body_lines else first_line
+
+                    patches.append({
+                        "hash": sha_short,
+                        "date": date_str,
+                        "tag": tag,
+                        "title": title,
+                        "desc": desc,
+                        "author": author_name
+                    })
+
+                self.send_json({"success": True, "patches": patches})
+            except Exception as e:
+                self.send_json_error(500, f"GitHub 커밋 조회 오류: {str(e)}")
+            return
+
         super().do_GET()
 
     def do_POST(self):
