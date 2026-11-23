@@ -2,13 +2,15 @@ import os
 import json
 import uuid
 import datetime
+import hashlib
+import secrets
 import urllib.request
+import urllib.parse
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_FILE = BASE_DIR / "auth_data.json"
 
 env_paths = [
     BASE_DIR / ".env",
@@ -22,6 +24,74 @@ for p in env_paths:
 
 api_key = os.getenv("GEMINI_API_KEY")
 model_name = os.getenv("GEMINI_MODEL") or "gemini-3.8-flash"
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+def check_supabase_config():
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        missing = []
+        if not SUPABASE_URL:
+            missing.append("SUPABASE_URL")
+        if not SUPABASE_SERVICE_ROLE_KEY:
+            missing.append("SUPABASE_SERVICE_ROLE_KEY")
+        return False, f"Supabase 환경 변수가 설정되지 않았습니다: {', '.join(missing)} (.env 파일을 확인해주세요)"
+    return True, ""
+
+def supabase_request(table: str, method: str = "GET", params: dict = None, body=None, headers_extra: dict = None):
+    ok, err = check_supabase_config()
+    if not ok:
+        raise Exception(err)
+
+    query_str = ""
+    if params:
+        query_str = "?" + urllib.parse.urlencode(params)
+
+    url = f"{SUPABASE_URL}/rest/v1/{table}{query_str}"
+    data_bytes = json.dumps(body).encode("utf-8") if body is not None else None
+
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+    if headers_extra:
+        headers.update(headers_extra)
+
+    req = urllib.request.Request(url, data=data_bytes, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp_body = resp.read().decode("utf-8")
+            if resp_body:
+                return json.loads(resp_body)
+            return None
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode("utf-8", errors="ignore")
+        raise Exception(f"Supabase HTTP {e.code} 오류 ({table}): {err_msg}")
+    except Exception as e:
+        raise Exception(f"Supabase 연결 오류 ({table}): {str(e)}")
+
+# 비밀번호 PBKDF2-HMAC-SHA256 해싱 및 검증
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000)
+    return f"pbkdf2_sha256$100000${salt}${dk.hex()}"
+
+def verify_password(password: str, hashed: str) -> bool:
+    try:
+        parts = hashed.split("$")
+        if len(parts) == 4 and parts[0] == "pbkdf2_sha256":
+            iterations = int(parts[1])
+            salt = parts[2]
+            stored_hash = parts[3]
+            dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations)
+            return secrets.compare_digest(dk.hex(), stored_hash)
+        elif hashed == password:
+            return True
+        return False
+    except Exception:
+        return False
 
 SYSTEM_INSTRUCTION = """
 당신은 데이터센터 인프라 및 서버 룸 운영을 총괄하는 숙련된 시니어 DCO(Data Center Operations) 엔지니어 어시스턴트이자, 본 DCO 교육 대시보드 웹의 스마트 AI 비서입니다.
@@ -177,103 +247,89 @@ CANDIDATE_MODELS = [
 def get_today_str():
     return datetime.datetime.now().strftime("%Y-%m-%d")
 
-def load_data():
-    if not DATA_FILE.exists():
-        default_data = {
-            "users": {
-                "admin": {
-                    "username": "admin",
-                    "password": "admin123",
-                    "name": "관리자",
-                    "role": "admin",
-                    "api_usage": 0,
-                    "daily_usage": {get_today_str(): 0},
-                    "created_at": "2026-11-20 09:00:00"
-                },
-                "user1": {
-                    "username": "user1",
-                    "password": "1234",
-                    "name": "홍길동 엔지니어",
-                    "role": "user",
-                    "api_usage": 0,
-                    "daily_usage": {get_today_str(): 0},
-                    "created_at": "2026-11-20 09:00:00"
-                }
-            },
-            "sessions": {},
-            "user_data": {},  # username: {"memos": [], "cards": [], "quizzes": [], "chat": []}
-            "logs": []
-        }
-        save_data(default_data)
-        return default_data
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            d = json.load(f)
-            if "user_data" not in d:
-                d["user_data"] = {}
-            return d
-    except Exception:
-        return {"users": {}, "sessions": {}, "user_data": {}, "logs": []}
-
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
 def check_and_increment_daily_usage(username):
-    data = load_data()
-    user = data.get("users", {}).get(username)
-    if not user:
-        return False, "인증되지 않은 사용자입니다. 로그인 후 이용해주세요.", 0, 5
+    ok, err = check_supabase_config()
+    if not ok:
+        return False, err, 0, 5
 
-    # 관리자는 제한 없음
-    if user.get("role") == "admin":
+    try:
+        users = supabase_request("user_accounts", "GET", {"username": f"eq.{username}", "select": "*"})
+        if not users:
+            return False, "인증되지 않은 사용자입니다. 로그인 후 이용해주세요.", 0, 5
+        user = users[0]
+
+        is_admin = (user.get("role") == "admin")
+        max_limit = 9999 if is_admin else 5
         today = get_today_str()
-        daily = user.setdefault("daily_usage", {})
-        daily[today] = daily.get(today, 0) + 1
-        user["api_usage"] = user.get("api_usage", 0) + 1
-        save_data(data)
-        return True, "", daily[today], 9999
 
-    today = get_today_str()
-    daily = user.setdefault("daily_usage", {})
-    current_today_count = daily.get(today, 0)
+        usage_records = supabase_request("api_daily_usage", "GET", {
+            "username": f"eq.{username}",
+            "usage_date": f"eq.{today}",
+            "select": "*"
+        })
 
-    if current_today_count >= 5:
-        return False, f"오늘 API 일일 호출 한도(5회)를 모두 소진하셨습니다. (내일 0시에 초기화됩니다)", current_today_count, 5
+        current_count = usage_records[0].get("call_count", 0) if usage_records else 0
 
-    daily[today] = current_today_count + 1
-    user["api_usage"] = user.get("api_usage", 0) + 1
-    save_data(data)
-    return True, "", daily[today], 5
+        if not is_admin and current_count >= 5:
+            return False, "오늘 API 일일 호출 한도(5회)를 모두 소진하셨습니다. (내일 0시에 초기화됩니다)", current_count, 5
+
+        new_count = current_count + 1
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        supabase_request(
+            "api_daily_usage",
+            "POST",
+            body={
+                "username": username,
+                "usage_date": today,
+                "call_count": new_count,
+                "last_called_at": now_iso
+            },
+            headers_extra={"Prefer": "resolution=merge-duplicates,return=representation"}
+        )
+
+        return True, "", new_count, max_limit
+    except Exception as e:
+        return False, f"사용량 확인 중 오류가 발생했습니다: {str(e)}", 0, 5
 
 def log_activity(username, action, details="", is_api=False, extra=None):
-    data = load_data()
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    log_entry = {
-        "id": str(uuid.uuid4())[:8],
-        "username": username or "익명",
-        "name": data["users"].get(username, {}).get("name", "익명/게스트"),
-        "role": data["users"].get(username, {}).get("role", "guest"),
-        "action": action,
-        "details": details,
-        "is_api": is_api,
-        "extra": extra,
-        "timestamp": now_str
-    }
-    data["logs"].insert(0, log_entry)
-    if len(data["logs"]) > 1000:
-        data["logs"] = data["logs"][:1000]
-        
-    save_data(data)
+    try:
+        name = "익명/게스트"
+        role = "guest"
+        if username and username != "anonymous":
+            try:
+                users = supabase_request("user_accounts", "GET", {"username": f"eq.{username}", "select": "name,role"})
+                if users:
+                    name = users[0].get("name", username)
+                    role = users[0].get("role", "user")
+            except Exception:
+                pass
+
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = {
+            "id": str(uuid.uuid4())[:8],
+            "username": username or "익명",
+            "name": name,
+            "role": role,
+            "action": action,
+            "details": details,
+            "is_api": is_api,
+            "extra": extra,
+            "timestamp": now_str
+        }
+        supabase_request("user_activity_logs", "POST", body=log_entry)
+    except Exception as e:
+        print(f"[log_activity error] {e}")
 
 def get_current_user(token):
     if not token:
         return None
-    data = load_data()
-    username = data.get("sessions", {}).get(token)
-    if username and username in data.get("users", {}):
-        return data["users"][username]
+    try:
+        users = supabase_request("user_accounts", "GET", {"session_token": f"eq.{token}", "select": "*"})
+        if users:
+            return users[0]
+    except Exception as e:
+        print(f"[get_current_user error] {e}")
     return None
 
 def generate_gemini(prompt_text, system_instruction=None, tools=None):
@@ -357,28 +413,47 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
             if not user or user.get("role") != "admin":
                 self.send_json_error(403, "관리자 권한이 필요합니다.")
                 return
-            
-            data = load_data()
-            today = get_today_str()
-            users_list = []
-            for u in data["users"].values():
-                today_used = u.get("daily_usage", {}).get(today, 0)
-                users_list.append({
-                    "username": u["username"],
-                    "name": u["name"],
-                    "role": u["role"],
-                    "api_usage": u.get("api_usage", 0),
-                    "today_usage": today_used,
-                    "created_at": u.get("created_at", "-")
+
+            try:
+                today = get_today_str()
+                all_users = supabase_request("user_accounts", "GET", {"select": "username,name,role,created_at"}) or []
+                all_usages = supabase_request("api_daily_usage", "GET", {"select": "username,usage_date,call_count"}) or []
+                recent_logs = supabase_request("user_activity_logs", "GET", {
+                    "select": "*",
+                    "order": "created_at.desc",
+                    "limit": "200"
+                }) or []
+
+                today_usage_map = {}
+                total_usage_map = {}
+                for u in all_usages:
+                    un = u.get("username")
+                    cnt = u.get("call_count", 0)
+                    total_usage_map[un] = total_usage_map.get(un, 0) + cnt
+                    if u.get("usage_date") == today:
+                        today_usage_map[un] = cnt
+
+                users_list = []
+                for u in all_users:
+                    un = u.get("username")
+                    users_list.append({
+                        "username": un,
+                        "name": u.get("name", un),
+                        "role": u.get("role", "user"),
+                        "api_usage": total_usage_map.get(un, 0),
+                        "today_usage": today_usage_map.get(un, 0),
+                        "created_at": u.get("created_at", "-")
+                    })
+
+                self.send_json({
+                    "users": users_list,
+                    "logs": recent_logs,
+                    "all_user_data": {}
                 })
-            
-            self.send_json({
-                "users": users_list,
-                "logs": data.get("logs", [])[:200],
-                "all_user_data": data.get("user_data", {})  # 관리자는 전체 유저 저장 데이터 열람 가능
-            })
+            except Exception as e:
+                self.send_json_error(500, f"관리자 데이터 조회 오류: {str(e)}")
             return
-            
+
         # 2. 내 정보 조회 (일일 남은 횟수 포함)
         elif self.path == "/api/auth/me":
             token = self.get_token_from_header()
@@ -386,17 +461,34 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
             if not user:
                 self.send_json_error(401, "인증되지 않은 사용자입니다.")
                 return
-            today = get_today_str()
-            today_used = user.get("daily_usage", {}).get(today, 0)
-            max_limit = 9999 if user.get("role") == "admin" else 5
-            self.send_json({
-                "username": user["username"],
-                "name": user["name"],
-                "role": user["role"],
-                "api_usage": user.get("api_usage", 0),
-                "today_usage": today_used,
-                "daily_limit": max_limit
-            })
+
+            try:
+                today = get_today_str()
+                username = user["username"]
+                today_record = supabase_request("api_daily_usage", "GET", {
+                    "username": f"eq.{username}",
+                    "usage_date": f"eq.{today}",
+                    "select": "call_count"
+                })
+                today_used = today_record[0]["call_count"] if today_record else 0
+
+                all_user_usages = supabase_request("api_daily_usage", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "call_count"
+                }) or []
+                total_api_used = sum(item.get("call_count", 0) for item in all_user_usages)
+
+                max_limit = 9999 if user.get("role") == "admin" else 5
+                self.send_json({
+                    "username": user["username"],
+                    "name": user["name"],
+                    "role": user["role"],
+                    "api_usage": total_api_used,
+                    "today_usage": today_used,
+                    "daily_limit": max_limit
+                })
+            except Exception as e:
+                self.send_json_error(500, f"내 정보 조회 오류: {str(e)}")
             return
 
         # 3. 로그인한 유저의 개인 저장 데이터 조회 (메모, 생성된 지식카드, 생성된 퀴즈, 챗봇 기록)
@@ -406,15 +498,63 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
             if not user:
                 self.send_json_error(401, "로그인이 필요한 서비스입니다.")
                 return
-            
-            data = load_data()
-            u_data = data.get("user_data", {}).get(user["username"], {
-                "memos": [],
-                "cards": [],
-                "quizzes": [],
-                "chat": []
-            })
-            self.send_json(u_data)
+
+            try:
+                username = user["username"]
+                # 1) memos
+                raw_memos = supabase_request("user_memos", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "id,text,date,subject",
+                    "order": "created_at.desc"
+                }) or []
+                memos = []
+                for m in raw_memos:
+                    memos.append({
+                        "id": m.get("id"),
+                        "text": m.get("text"),
+                        "date": m.get("date"),
+                        "subject": m.get("subject", "학습 메모")
+                    })
+
+                # 2) cards
+                raw_cards = supabase_request("user_knowledge_cards", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "data",
+                    "order": "created_at.asc"
+                }) or []
+                cards = [c["data"] for c in raw_cards if "data" in c]
+
+                # 3) quizzes
+                raw_quizzes = supabase_request("user_quizzes", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "data",
+                    "order": "created_at.asc"
+                }) or []
+                quizzes = [q["data"] for q in raw_quizzes if "data" in q]
+
+                # 4) chat
+                raw_chat = supabase_request("user_chat_logs", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "id,question,reply,timestamp",
+                    "order": "created_at.asc"
+                }) or []
+                chat = []
+                for c in raw_chat:
+                    chat.append({
+                        "id": c.get("id"),
+                        "question": c.get("question"),
+                        "reply": c.get("reply"),
+                        "timestamp": c.get("timestamp")
+                    })
+
+                self.send_json({
+                    "memos": memos,
+                    "cards": cards,
+                    "quizzes": quizzes,
+                    "chat": chat
+                })
+            except Exception as e:
+                self.send_json_error(500, f"사용자 데이터 조회 오류: {str(e)}")
             return
 
         super().do_GET()
@@ -435,41 +575,71 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/auth/login":
             u_name = req_data.get("username", "").strip()
             u_pass = req_data.get("password", "").strip()
-            data = load_data()
-            if u_name in data["users"] and data["users"][u_name]["password"] == u_pass:
-                user_info = data["users"][u_name]
-                new_token = str(uuid.uuid4())
-                data["sessions"][new_token] = u_name
-                save_data(data)
-                
-                today = get_today_str()
-                today_used = user_info.get("daily_usage", {}).get(today, 0)
-                max_limit = 9999 if user_info.get("role") == "admin" else 5
+            if not u_name or not u_pass:
+                self.send_json_error(400, "아이디와 비밀번호를 모두 입력해주세요.")
+                return
 
-                log_activity(u_name, "로그인", f"로그인 성공 (IP: {self.client_address[0]})", is_api=False)
-                self.send_json({
-                    "token": new_token,
-                    "user": {
-                        "username": user_info["username"],
-                        "name": user_info["name"],
-                        "role": user_info["role"],
-                        "api_usage": user_info.get("api_usage", 0),
-                        "today_usage": today_used,
-                        "daily_limit": max_limit
-                    }
-                })
-            else:
-                self.send_json_error(401, "아이디 또는 비밀번호가 올바르지 않습니다.")
+            try:
+                users = supabase_request("user_accounts", "GET", {"username": f"eq.{u_name}", "select": "*"})
+                if users and verify_password(u_pass, users[0].get("password_hash", "")):
+                    user_info = users[0]
+                    new_token = secrets.token_urlsafe(32)
+                    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+                    supabase_request(
+                        "user_accounts",
+                        "PATCH",
+                        params={"username": f"eq.{u_name}"},
+                        body={"session_token": new_token, "last_login_at": now_iso}
+                    )
+
+                    today = get_today_str()
+                    usage_rec = supabase_request("api_daily_usage", "GET", {
+                        "username": f"eq.{u_name}",
+                        "usage_date": f"eq.{today}",
+                        "select": "call_count"
+                    })
+                    today_used = usage_rec[0]["call_count"] if usage_rec else 0
+
+                    all_usages = supabase_request("api_daily_usage", "GET", {
+                        "username": f"eq.{u_name}",
+                        "select": "call_count"
+                    }) or []
+                    total_used = sum(item.get("call_count", 0) for item in all_usages)
+
+                    max_limit = 9999 if user_info.get("role") == "admin" else 5
+
+                    log_activity(u_name, "로그인", f"로그인 성공 (IP: {self.client_address[0]})", is_api=False)
+                    self.send_json({
+                        "token": new_token,
+                        "user": {
+                            "username": user_info["username"],
+                            "name": user_info.get("name", user_info["username"]),
+                            "role": user_info.get("role", "user"),
+                            "api_usage": total_used,
+                            "today_usage": today_used,
+                            "daily_limit": max_limit
+                        }
+                    })
+                else:
+                    self.send_json_error(401, "아이디 또는 비밀번호가 올바르지 않습니다.")
+            except Exception as e:
+                self.send_json_error(500, f"로그인 처리 중 오류: {str(e)}")
             return
 
         # 0-2) 로그아웃
         elif self.path == "/api/auth/logout":
-            if token:
-                data = load_data()
-                if token in data["sessions"]:
-                    un = data["sessions"].pop(token)
-                    save_data(data)
-                    log_activity(un, "로그아웃", "로그아웃 완료", is_api=False)
+            if token and user:
+                try:
+                    supabase_request(
+                        "user_accounts",
+                        "PATCH",
+                        params={"username": f"eq.{user['username']}"},
+                        body={"session_token": None}
+                    )
+                    log_activity(user["username"], "로그아웃", "로그아웃 완료", is_api=False)
+                except Exception as e:
+                    print(f"[logout error] {e}")
             self.send_json({"success": True})
             return
 
@@ -484,45 +654,43 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
             if len(u_name) < 3:
                 self.send_json_error(400, "아이디는 최소 3자 이상이어야 합니다.")
                 return
-            data = load_data()
-            if u_name in data["users"]:
-                self.send_json_error(400, "이미 존재하는 아이디입니다.")
-                return
-            
-            today = get_today_str()
-            data["users"][u_name] = {
-                "username": u_name,
-                "password": u_pass,
-                "name": u_display,
-                "role": "user",
-                "api_usage": 0,
-                "daily_usage": {today: 0},
-                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            # 개인 데이터 저장소 초기화
-            if "user_data" not in data:
-                data["user_data"] = {}
-            data["user_data"][u_name] = {
-                "memos": [],
-                "cards": [],
-                "quizzes": [],
-                "chat": []
-            }
-            new_token = str(uuid.uuid4())
-            data["sessions"][new_token] = u_name
-            save_data(data)
-            log_activity(u_name, "회원가입", "신규 회원가입 및 자동 로그인", is_api=False)
-            self.send_json({
-                "token": new_token,
-                "user": {
+
+            try:
+                existing = supabase_request("user_accounts", "GET", {"username": f"eq.{u_name}", "select": "username"})
+                if existing:
+                    self.send_json_error(400, "이미 존재하는 아이디입니다.")
+                    return
+
+                new_token = secrets.token_urlsafe(32)
+                hashed_pass = hash_password(u_pass)
+                now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+                # 신규 회원은 기본적으로 role='user'
+                new_user_data = {
                     "username": u_name,
+                    "password_hash": hashed_pass,
                     "name": u_display,
                     "role": "user",
-                    "api_usage": 0,
-                    "today_usage": 0,
-                    "daily_limit": 5
+                    "session_token": new_token,
+                    "created_at": now_iso,
+                    "last_login_at": now_iso
                 }
-            })
+                supabase_request("user_accounts", "POST", body=new_user_data)
+
+                log_activity(u_name, "회원가입", "신규 회원가입 및 자동 로그인", is_api=False)
+                self.send_json({
+                    "token": new_token,
+                    "user": {
+                        "username": u_name,
+                        "name": u_display,
+                        "role": "user",
+                        "api_usage": 0,
+                        "today_usage": 0,
+                        "daily_limit": 5
+                    }
+                })
+            except Exception as e:
+                self.send_json_error(500, f"회원가입 처리 중 오류: {str(e)}")
             return
 
         # 0-4) 유저 개인 데이터 동기화 (메모 저장/삭제 등)
@@ -533,13 +701,66 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
             data_type = req_data.get("type")  # memos, cards, quizzes, chat
             items = req_data.get("items")
             if data_type in ["memos", "cards", "quizzes", "chat"] and items is not None:
-                data = load_data()
-                u_data = data.setdefault("user_data", {}).setdefault(user["username"], {
-                    "memos": [], "cards": [], "quizzes": [], "chat": []
-                })
-                u_data[data_type] = items
-                save_data(data)
-                self.send_json({"success": True})
+                try:
+                    un = user["username"]
+                    if data_type == "memos":
+                        supabase_request("user_memos", "DELETE", params={"username": f"eq.{un}"})
+                        if items:
+                            memo_rows = []
+                            for m in items:
+                                memo_rows.append({
+                                    "username": un,
+                                    "id": int(m.get("id")),
+                                    "text": str(m.get("text", "")),
+                                    "date": str(m.get("date", "")),
+                                    "subject": str(m.get("subject", "학습 메모"))
+                                })
+                            supabase_request("user_memos", "POST", body=memo_rows)
+
+                    elif data_type == "cards":
+                        supabase_request("user_knowledge_cards", "DELETE", params={"username": f"eq.{un}"})
+                        if items:
+                            card_rows = []
+                            for c in items:
+                                c_id = str(c.get("id") or uuid.uuid4().hex[:8])
+                                card_rows.append({
+                                    "username": un,
+                                    "id": c_id,
+                                    "data": c
+                                })
+                            supabase_request("user_knowledge_cards", "POST", body=card_rows)
+
+                    elif data_type == "quizzes":
+                        supabase_request("user_quizzes", "DELETE", params={"username": f"eq.{un}"})
+                        if items:
+                            quiz_rows = []
+                            for q in items:
+                                q_id = str(q.get("id") or uuid.uuid4().hex[:8])
+                                quiz_rows.append({
+                                    "username": un,
+                                    "id": q_id,
+                                    "data": q
+                                })
+                            supabase_request("user_quizzes", "POST", body=quiz_rows)
+
+                    elif data_type == "chat":
+                        supabase_request("user_chat_logs", "DELETE", params={"username": f"eq.{un}"})
+                        if items:
+                            chat_rows = []
+                            for ch in items:
+                                ch_id = str(ch.get("id") or uuid.uuid4().hex[:8])
+                                chat_rows.append({
+                                    "username": un,
+                                    "id": ch_id,
+                                    "question": str(ch.get("question", "")),
+                                    "reply": str(ch.get("reply", "")),
+                                    "timestamp": str(ch.get("timestamp", ""))
+                                })
+                            supabase_request("user_chat_logs", "POST", body=chat_rows)
+
+                    self.send_json({"success": True})
+                except Exception as e:
+                    self.send_json_error(500, f"데이터 동기화 오류: {str(e)}")
             else:
                 self.send_json_error(400, "잘못된 데이터 형식입니다.")
             return
@@ -598,17 +819,19 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
                 # 일반 대화 텍스트인 경우
                 reply = chat_res.get("text", "") if isinstance(chat_res, dict) else str(chat_res)
                 
-                # 유저 개인 저장소에 챗봇 대화 추가
-                data = load_data()
-                u_chat = data.setdefault("user_data", {}).setdefault(user["username"], {}).setdefault("chat", [])
-                chat_entry = {
-                    "id": str(uuid.uuid4())[:8],
-                    "question": user_msg,
-                    "reply": reply,
-                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }
-                u_chat.append(chat_entry)
-                save_data(data)
+                # DB user_chat_logs에 챗봇 대화 저장
+                chat_id = str(uuid.uuid4())[:8]
+                now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                try:
+                    supabase_request("user_chat_logs", "POST", body={
+                        "username": user["username"],
+                        "id": chat_id,
+                        "question": user_msg,
+                        "reply": reply,
+                        "timestamp": now_str
+                    })
+                except Exception as log_err:
+                    print(f"[chat log save error] {log_err}")
 
                 log_activity(
                     user["username"],
@@ -660,13 +883,19 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 card_title = card_data.get("title", chosen)
                 
                 # 유저 개인 저장소에 지식카드 추가
-                data = load_data()
-                u_cards = data.setdefault("user_data", {}).setdefault(user["username"], {}).setdefault("cards", [])
+                card_id = str(uuid.uuid4())[:8]
                 card_data["isAi"] = True
-                card_data["id"] = str(uuid.uuid4())[:8]
+                card_data["id"] = card_id
                 card_data["created_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                u_cards.append(card_data)
-                save_data(data)
+
+                try:
+                    supabase_request("user_knowledge_cards", "POST", body={
+                        "username": user["username"],
+                        "id": card_id,
+                        "data": card_data
+                    })
+                except Exception as card_err:
+                    print(f"[card save error] {card_err}")
 
                 log_activity(
                     user["username"],
@@ -711,13 +940,19 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 quiz_q = quiz_data.get("question", "")
 
                 # 유저 개인 저장소에 퀴즈 추가
-                data = load_data()
-                u_quizzes = data.setdefault("user_data", {}).setdefault(user["username"], {}).setdefault("quizzes", [])
+                quiz_id = str(uuid.uuid4())[:8]
                 quiz_data["isAi"] = True
-                quiz_data["id"] = str(uuid.uuid4())[:8]
+                quiz_data["id"] = quiz_id
                 quiz_data["created_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                u_quizzes.append(quiz_data)
-                save_data(data)
+
+                try:
+                    supabase_request("user_quizzes", "POST", body={
+                        "username": user["username"],
+                        "id": quiz_id,
+                        "data": quiz_data
+                    })
+                except Exception as quiz_err:
+                    print(f"[quiz save error] {quiz_err}")
 
                 log_activity(
                     user["username"],
@@ -746,7 +981,12 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
 def run(port=None):
     if port is None:
         port = int(os.getenv("PORT", 8080))
-    load_data()
+    ok, err = check_supabase_config()
+    if not ok:
+        print(f"⚠️  [Supabase 설정 경고] {err}")
+    else:
+        print("✅ Supabase 설정 확인 완료 (PostgreSQL 연동 준비)")
+
     server_address = ("", port)
     httpd = HTTPServer(server_address, DCODashboardHandler)
     print(f"🚀 DCO 대시보드 & AI 서버 실행 중 (포트: {port})")
