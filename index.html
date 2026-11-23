@@ -3843,6 +3843,273 @@ sequenceDiagram
             sendChatMessage();
         }
 
+        // ================= 🤖 AI 비서 Function Calling 실행기 (안전한 화이트리스트 Dispatcher) =================
+        function executeWebAssistantTool(toolName, args) {
+            args = args || {};
+
+            switch (toolName) {
+                // 1) 오늘 시간표 보기
+                case "show_today_schedule": {
+                    const todayCard = document.getElementById('dualDayScheduleWrap');
+                    if (todayCard) todayCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    const now = new Date();
+                    const weekInfo = (typeof getCurrentWeekAndDay === 'function') ? getCurrentWeekAndDay() : { weekNum: 2, dayIdx: 4 };
+                    const todayData = scheduleData ? scheduleData[weekInfo.weekNum] : null;
+                    const dateStr = todayData?.dates[weekInfo.dayIdx] || `${now.getMonth() + 1}/${now.getDate()}`;
+                    
+                    let summary = '';
+                    if (todayData) {
+                        const amSlots = todayData.am.map(s => ({ time: s.time, item: s.items[weekInfo.dayIdx] }));
+                        const pmSlots = todayData.pm.map(s => ({ time: s.time, item: s.items[weekInfo.dayIdx] }));
+                        const amSubj = amSlots[0]?.item[0];
+                        const amRoom = amSlots[0]?.item[1];
+                        const pmSubj = pmSlots[0]?.item[0];
+                        const pmRoom = pmSlots[0]?.item[1];
+                        summary = `<br>• 오전 (09:00~12:00): <strong>${amSubj || '수업 없음'}</strong> (📍 ${amRoom || '-'})<br>• 오후 (13:00~18:00): <strong>${pmSubj || '수업 없음'}</strong> (📍 ${pmRoom || '-'})`;
+                    }
+                    return {
+                        success: true,
+                        message: `📅 <strong>오늘(${dateStr})의 교육 일정</strong>으로 화면을 이동했습니다!${summary}`
+                    };
+                }
+
+                // 2) 내일 / 다음 수업일 시간표 보기
+                case "show_tomorrow_schedule": {
+                    const todayCard = document.getElementById('dualDayScheduleWrap');
+                    if (todayCard) todayCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const nextTag = document.getElementById('tomorrowHeaderTag');
+                    return {
+                        success: true,
+                        message: `📅 <strong>다음 수업일(${nextTag ? nextTag.textContent : '다음 일정'})</strong> 시간표 영역을 화면에 안내해 드렸습니다!`
+                    };
+                }
+
+                // 3) 전체 주차별 종합 시간표 펼치기
+                case "show_full_schedule": {
+                    const fullWrap = document.getElementById('fullScheduleInnerWrap');
+                    const isCurrentlyOpen = fullWrap && fullWrap.style.display !== 'none';
+                    if (!isCurrentlyOpen) {
+                        toggleScheduleView();
+                    }
+                    if (args.week_num && typeof renderWeek === 'function') {
+                        const w = Math.min(6, Math.max(1, parseInt(args.week_num, 10)));
+                        renderWeek(w);
+                    }
+                    const tableEl = document.getElementById('scheduleTable');
+                    if (tableEl) tableEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return {
+                        success: true,
+                        message: `📅 <strong>1~6주차 전체 주차별 종합 시간표</strong>를 열어드렸습니다! (셀을 클릭하면 상세 교재 및 강의실을 확인하실 수 있습니다)`
+                    };
+                }
+
+                // 4) 특정 과목 교재 & 강의실 안내 팝업
+                case "show_subject_book_info": {
+                    const sName = (args.subject_name || '').trim();
+                    if (!sName) {
+                        return { success: false, message: "과목명을 확인할 수 없습니다." };
+                    }
+                    let matchedKey = Object.keys(officialSubjectData).find(k => 
+                        k.toLowerCase() === sName.toLowerCase() || 
+                        k.toLowerCase().includes(sName.toLowerCase()) || 
+                        sName.toLowerCase().includes(k.toLowerCase())
+                    );
+                    if (!matchedKey) matchedKey = sName;
+                    
+                    const info = officialSubjectData[matchedKey] || { room: "함월관 4층 안전시스템실", book: `${sName} 교재` };
+                    openBookModal(matchedKey, info.room);
+                    return {
+                        success: true,
+                        message: `📚 <strong>[${matchedKey}]</strong> 교재 및 강의실 상세 팝업을 열었습니다!<br>• 강의실: 📍 <strong>${info.room}</strong><br>• 교재: 📖 <strong>${info.book}</strong>`
+                    };
+                }
+
+                // 5) 나만의 리마인더 메모 작성 및 저장
+                case "create_user_memo": {
+                    const text = (args.text || '').trim();
+                    if (!text) {
+                        return { success: false, message: "저장할 메모 내용을 입력받지 못했습니다." };
+                    }
+                    if (!currentUser) {
+                        openLoginModal();
+                        return { success: false, message: "⚠️ 메모를 저장하려면 먼저 로그인이 필요합니다. 로그인 창을 열어드렸습니다." };
+                    }
+                    const list = loadMemos();
+                    const now = new Date();
+                    const dateStr = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                    const curSubject = (typeof getCurrentSubjectLabel === 'function') ? getCurrentSubjectLabel() : '학습 메모';
+                    const newMemo = {
+                        id: Date.now(),
+                        text: text,
+                        date: dateStr,
+                        subject: curSubject
+                    };
+                    list.unshift(newMemo);
+                    saveMemos(list);
+                    logUserAction("메모 작성 (AI 비서)", `[${curSubject}] ${text}`, {
+                        subject: curSubject,
+                        text: text,
+                        memoId: newMemo.id
+                    });
+
+                    // 리마인더 탭으로 전환 후 포커스
+                    switchHubTab('memo');
+                    const memoTabPane = document.getElementById('hubPaneMemo');
+                    if (memoTabPane) memoTabPane.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    return {
+                        success: true,
+                        message: `📝 <strong>리마인더 메모에 안전하게 저장했습니다!</strong><br><br>• 내용: <em>"${text}"</em><br>• 과목: ${curSubject}<br>• 시간: ${dateStr}<br><br>👉 우측 <strong>[메모/리마인더]</strong> 탭에 즉시 반영되었습니다.`
+                    };
+                }
+
+                // 6) 저장된 메모 목록 조회
+                case "list_user_memos": {
+                    if (!currentUser) {
+                        openLoginModal();
+                        return { success: false, message: "⚠️ 메모를 조회하려면 먼저 로그인이 필요합니다." };
+                    }
+                    switchHubTab('memo');
+                    const list = loadMemos();
+                    if (list.length === 0) {
+                        return {
+                            success: true,
+                            message: `📝 현재 저장된 리마인더 메모가 없습니다.<br><em>"~라고 메모 저장해줘"</em> 라고 말씀하시면 즉시 등록해 드립니다!`
+                        };
+                    }
+                    const preview = list.slice(0, 3).map((m, idx) => `${idx + 1}. [${m.subject || '메모'}] ${m.text} (${m.date})`).join('<br>');
+                    return {
+                        success: true,
+                        message: `📝 현재 총 <strong>${list.length}개</strong>의 메모가 보관되어 있습니다.<br><br>${preview}${list.length > 3 ? '<br>...외 ' + (list.length - 3) + '개 더 있음' : ''}<br><br>👉 우측 [메모/리마인더] 탭을 열어드렸습니다!`
+                    };
+                }
+
+                // 7) 메모 삭제 요청 (사용자 재확인 Confirm 안전 절차 필수)
+                case "request_delete_memo": {
+                    if (!currentUser) return { success: false, message: "로그인이 필요합니다." };
+                    const keyword = (args.memo_keyword || '').trim();
+                    const list = loadMemos();
+                    const target = list.find(m => m.text.includes(keyword) || (m.subject && m.subject.includes(keyword)));
+                    
+                    if (!target) {
+                        return {
+                            success: false,
+                            message: `🔍 <em>"${keyword}"</em> 내용과 일치하는 메모를 찾을 수 없습니다.`
+                        };
+                    }
+
+                    // 안전 확인 컨펌 (되돌리기 어려운 작업이므로 명시적 확인)
+                    const confirmed = confirm(`⚠️ [AI 비서 메모 삭제 확인]\n정말로 아래 메모를 삭제하시겠습니까?\n\n"[${target.subject || '메모'}] ${target.text}"`);
+                    if (confirmed) {
+                        deleteMemo(target.id);
+                        return {
+                            success: true,
+                            message: `🗑️ <em>"[${target.subject || '메모'}] ${target.text}"</em> 메모가 안전하게 삭제되었습니다.`
+                        };
+                    } else {
+                        return {
+                            success: true,
+                            message: `🛑 메모 삭제 작업이 취소되었습니다. (기존 메모 보존됨)`
+                        };
+                    }
+                }
+
+                // 8) 실무 퀴즈 풀기 및 AI 문제 출제
+                case "start_quiz": {
+                    switchHubTab('quiz');
+                    const quizPane = document.getElementById('hubPaneQuiz');
+                    if (quizPane) quizPane.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    if (args.generate_new && typeof generateAiQuiz === 'function') {
+                        generateAiQuiz();
+                        return {
+                            success: true,
+                            message: `🎯 우측 <strong>[실무 퀴즈]</strong> 탭으로 이동하여 새로운 AI 실무 문제를 출제 중입니다!`
+                        };
+                    }
+                    return {
+                        success: true,
+                        message: `🎯 우측 트레이닝 허브의 <strong>[실무 퀴즈]</strong> 탭을 열어드렸습니다!<br>현재 Q${currentQuizIdx + 1} 문제를 풀어보세요.`
+                    };
+                }
+
+                // 9) 핵심 지식 카드 학습
+                case "show_knowledge_card": {
+                    switchHubTab('card');
+                    const cardPane = document.getElementById('hubPaneCard');
+                    if (cardPane) cardPane.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    if (args.generate_new && typeof generateAiKnowledgeCard === 'function') {
+                        generateAiKnowledgeCard();
+                        return {
+                            success: true,
+                            message: `💡 우측 <strong>[핵심 지식]</strong> 탭으로 이동하여 새 실무 팁 카드를 생성 중입니다!`
+                        };
+                    }
+                    return {
+                        success: true,
+                        message: `💡 우측 트레이닝 허브의 <strong>[핵심 지식]</strong> 카드 탭을 열어드렸습니다!`
+                    };
+                }
+
+                // 10) 전체 교육 진도율 현황 확인
+                case "show_progress_status": {
+                    const progCard = document.querySelector('.overall-progress-card');
+                    if (progCard) progCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    let totalHours = 0;
+                    let completedHours = 0;
+                    for (const sName in officialSubjectData) {
+                        totalHours += (officialSubjectData[sName].totalHours || 0);
+                        completedHours += (officialSubjectData[sName].completedHours || 0);
+                    }
+                    const pct = ((completedHours / totalHours) * 100).toFixed(1);
+                    const rem = Math.max(0, totalHours - completedHours);
+
+                    return {
+                        success: true,
+                        message: `🎯 <strong>전체 교육 총 진도율 안내</strong><br><br>• 현재 진도율: <strong style="color:#38bdf8; font-size:15px;">${pct}%</strong><br>• 이수 시수: <strong>${completedHours}시간</strong> / 총 ${totalHours}시간<br>• 잔여 시수: <strong>${rem}시간</strong> (종강 예정일: 12/18)<br><br>👉 화면 우측의 진도율 카드로 안내해 드렸습니다!`
+                    };
+                }
+
+                // 11) 허브 탭 전환
+                case "switch_hub_tab": {
+                    const tab = (args.tab_name || 'card').toLowerCase();
+                    const validTabs = ['card', 'quiz', 'memo', 'arch'];
+                    if (!validTabs.includes(tab)) {
+                        return { success: false, message: `올바르지 않은 탭 이름입니다: ${tab}` };
+                    }
+                    switchHubTab(tab);
+                    const tabNames = { card: '핵심 지식', quiz: '실무 퀴즈', memo: '메모/리마인더', arch: '프로젝트 아키텍처' };
+                    return {
+                        success: true,
+                        message: `👉 우측 트레이닝 허브의 <strong>[${tabNames[tab] || tab}]</strong> 탭으로 전환했습니다!`
+                    };
+                }
+
+                // 12) 테마 변경 (다크/라이트)
+                case "toggle_dashboard_theme": {
+                    const isLight = document.body.classList.contains('light');
+                    const reqTheme = (args.theme || 'toggle').toLowerCase();
+                    if ((reqTheme === 'light' && !isLight) || (reqTheme === 'dark' && isLight) || reqTheme === 'toggle') {
+                        toggleTheme();
+                    }
+                    const cur = document.body.classList.contains('light') ? '라이트 모드 ☀️' : '다크 모드 🌙';
+                    return {
+                        success: true,
+                        message: `🌓 화면 테마를 <strong>${cur}</strong>로 변경했습니다!`
+                    };
+                }
+
+                default:
+                    return {
+                        success: false,
+                        message: `⚠️ 실행할 수 없는 기능 요청입니다 (${toolName}).`
+                    };
+            }
+        }
+
         async function sendChatMessage() {
             if (!currentUser) {
                 alert('비회원은 AI 챗봇을 이용할 수 없습니다.\n우측 상단에서 로그인 또는 회원가입 후 이용해주세요!');
@@ -3868,7 +4135,7 @@ sequenceDiagram
             // 로딩 메시지 추가
             const loadingEl = document.createElement('div');
             loadingEl.className = 'chat-msg loading';
-            loadingEl.textContent = 'DCO 엔지니어가 답변을 작성 중입니다... ⚙️';
+            loadingEl.textContent = 'DCO AI 비서가 처리 중입니다... ⚙️';
             msgsBox.appendChild(loadingEl);
             msgsBox.scrollTop = msgsBox.scrollHeight;
 
@@ -3894,7 +4161,21 @@ sequenceDiagram
                 const botEl = document.createElement('div');
                 botEl.className = 'chat-msg bot';
 
-                if (data.reply) {
+                // 🎯 1) Gemini Function Calling 도구 호출 응답인 경우
+                if (data.type === 'function_call' && data.function_call) {
+                    const fnName = data.function_call.name;
+                    const fnArgs = data.function_call.args || {};
+                    
+                    try {
+                        const execResult = executeWebAssistantTool(fnName, fnArgs);
+                        botEl.innerHTML = execResult.message || '요청하신 기능을 실행했습니다.';
+                    } catch (toolErr) {
+                        console.error('Tool execution error:', toolErr);
+                        botEl.innerHTML = `⚠️ 기능 실행 중 오류가 발생했습니다: ${toolErr.message}`;
+                    }
+                } 
+                // 🎯 2) 일반 텍스트 답변인 경우
+                else if (data.reply) {
                     botEl.textContent = data.reply;
                 } else {
                     botEl.textContent = '⚠️ ' + (data.error || '답변을 불러오지 못했습니다.');
@@ -3906,7 +4187,7 @@ sequenceDiagram
                 let apiKey = localStorage.getItem('dco_gemini_api_key');
                 if (apiKey) {
                     try {
-                        const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+                        const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
                         const directRes = await fetch(directUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -4117,122 +4398,6 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 btn.disabled = false;
                 btn.textContent = originalText;
             }
-        }
-
-        // 🤖 DCO AI 챗봇 스크립트
-        function toggleChat() {
-            const win = document.getElementById('chatWindow');
-            win.classList.toggle('active');
-            if (win.classList.contains('active')) {
-                document.getElementById('chatInput').focus();
-            }
-        }
-
-        function handleChatKeyDown(e) {
-            if (e.key === 'Enter') {
-                sendChatMessage();
-            }
-        }
-
-        function askPreset(text) {
-            document.getElementById('chatInput').value = text;
-            sendChatMessage();
-        }
-
-        async function sendChatMessage() {
-            if (!currentUser) {
-                alert('비회원은 AI 챗봇을 이용할 수 없습니다.\n우측 상단에서 로그인 또는 회원가입 후 이용해주세요!');
-                openLoginModal();
-                return;
-            }
-
-            const input = document.getElementById('chatInput');
-            const msg = input.value.trim();
-            if (!msg) return;
-
-            const msgsBox = document.getElementById('chatMessages');
-
-            // 유저 메시지 추가
-            const userEl = document.createElement('div');
-            userEl.className = 'chat-msg user';
-            userEl.textContent = msg;
-            msgsBox.appendChild(userEl);
-
-            input.value = '';
-            msgsBox.scrollTop = msgsBox.scrollHeight;
-
-            // 로딩 메시지 추가
-            const loadingEl = document.createElement('div');
-            loadingEl.className = 'chat-msg loading';
-            loadingEl.textContent = 'DCO 엔지니어가 답변을 작성 중입니다... ⚙️';
-            msgsBox.appendChild(loadingEl);
-            msgsBox.scrollTop = msgsBox.scrollHeight;
-
-            // 웹 서버 배포(Render 등) 시 상대 경로, 로컬 파일(file://)일 때만 localhost:8080
-            const targetUrl = (window.location.protocol === 'file:')
-                ? 'http://localhost:8080/api/chat'
-                : '/api/chat';
-
-            try {
-                const headers = { 'Content-Type': 'application/json' };
-                const token = localStorage.getItem('dco_auth_token');
-                if (token) headers['Authorization'] = `Bearer ${token}`;
-
-                const res = await fetch(targetUrl, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({ message: msg })
-                });
-
-                const data = await res.json();
-                msgsBox.removeChild(loadingEl);
-
-                const botEl = document.createElement('div');
-                botEl.className = 'chat-msg bot';
-
-                if (data.reply) {
-                    botEl.textContent = data.reply;
-                } else {
-                    botEl.textContent = '⚠️ ' + (data.error || '답변을 불러오지 못했습니다.');
-                }
-                msgsBox.appendChild(botEl);
-            } catch (err) {
-                // 만약 백엔드 서버가 안 켜져있거나 GitHub Pages일 경우 브라우저 직접 호출 시도
-                console.warn('Local chat server error, checking direct key:', err);
-                let apiKey = localStorage.getItem('dco_gemini_api_key');
-                if (apiKey) {
-                    try {
-                        const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
-                        const directRes = await fetch(directUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                contents: [{ parts: [{ text: msg }] }],
-                                systemInstruction: {
-                                    parts: [{ text: "당신은 데이터센터(DCO) 시니어 엔지니어 어시스턴트입니다. 친절하고 전문적으로 한국어로 답변하세요." }]
-                                }
-                            })
-                        });
-                        const directData = await directRes.json();
-                        msgsBox.removeChild(loadingEl);
-                        const botEl = document.createElement('div');
-                        botEl.className = 'chat-msg bot';
-                        botEl.textContent = directData.candidates?.[0]?.content?.parts?.[0]?.text || '답변을 생성하지 못했습니다.';
-                        msgsBox.appendChild(botEl);
-                        msgsBox.scrollTop = msgsBox.scrollHeight;
-                        return;
-                    } catch (e) {
-                        console.error('Direct Gemini call failed:', e);
-                    }
-                }
-
-                msgsBox.removeChild(loadingEl);
-                const botEl = document.createElement('div');
-                botEl.className = 'chat-msg bot';
-                botEl.textContent = '⚠️ 서버 통신 오류가 발생했습니다. 백엔드 서버(server.py)가 실행 중인지 확인해 주세요. (http://localhost:8080)';
-                msgsBox.appendChild(botEl);
-            }
-            msgsBox.scrollTop = msgsBox.scrollHeight;
         }
 
         /* ================= 🌤️ Open-Meteo 실시간 날씨 위젯 로직 (울산 한국폴리텍 기준) ================= */
@@ -4942,15 +5107,18 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             <button class="chat-close-btn" onclick="toggleChat()">✕</button>
         </div>
         <div class="chat-messages" id="chatMessages">
-            <div class="chat-msg bot">안녕하세요! 🛠️<br>AWS DCO 엔지니어 시니어 어시스턴트입니다.<br>랙/서버 설치, 광케이블링, 전력(PDU/UPS), 쿨링 등 데이터센터 운영에 대해 무엇이든 물어보세요!</div>
+            <div class="chat-msg bot">안녕하세요! 🛠️<br>AWS DCO 시니어 어시스턴트 & 대시보드 AI 비서입니다.<br>랙/서버 설치, 전력/쿨링 등 <strong>데이터센터 실무 질문</strong>은 물론, <strong>"오늘 시간표 보여줘"</strong>, <strong>"~라고 메모 저장해줘"</strong>, <strong>"실무 퀴즈 풀어볼래"</strong> 등 웹페이지 제어도 언제든 말씀해 주세요!</div>
         </div>
         <div class="chat-suggestions">
-            <span class="chat-suggestion-chip" onclick="askPreset('랙 마운트(Rack & Stack) 기본 안전 수칙 알려줘')">랙 마운트 수칙</span>
-            <span class="chat-suggestion-chip" onclick="askPreset('광케이블(LC/SC) 취급 시 주의사항은?')">광케이블 취급</span>
-            <span class="chat-suggestion-chip" onclick="askPreset('서버실 핫아일/콜드아일 원리가 뭐야?')">핫/콜드아일 원리</span>
+            <span class="chat-suggestion-chip" onclick="askPreset('오늘 시간표 보여줘')">📅 오늘 시간표</span>
+            <span class="chat-suggestion-chip" onclick="askPreset('리마인더에 랙 점검 완료라고 메모 저장해줘')">📝 메모 저장</span>
+            <span class="chat-suggestion-chip" onclick="askPreset('실무 퀴즈 풀기')">🎯 퀴즈 풀기</span>
+            <span class="chat-suggestion-chip" onclick="askPreset('전체 교육 진도율 얼마나 돼?')">📊 진도율 확인</span>
+            <span class="chat-suggestion-chip" onclick="askPreset('랙 마운트 기본 안전 수칙 알려줘')">⚡ 랙 마운트 수칙</span>
+            <span class="chat-suggestion-chip" onclick="askPreset('다크모드로 바꿔줘')">🌓 테마 전환</span>
         </div>
         <div class="chat-input-bar">
-            <input type="text" class="chat-input" id="chatInput" placeholder="DCO 실무 질문을 입력하세요..." onkeydown="handleChatKeyDown(event)">
+            <input type="text" class="chat-input" id="chatInput" placeholder="실무 질문이나 웹 기능(시간표, 메모 등)을 입력하세요..." onkeydown="handleChatKeyDown(event)">
             <button class="chat-send-btn" onclick="sendChatMessage()">전송</button>
         </div>
     </div>

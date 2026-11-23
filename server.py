@@ -24,16 +24,154 @@ api_key = os.getenv("GEMINI_API_KEY")
 model_name = os.getenv("GEMINI_MODEL") or "gemini-3.8-flash"
 
 SYSTEM_INSTRUCTION = """
-당신은 데이터센터 인프라 및 서버 룸 운영을 총괄하는 숙련된 시니어 DCO(Data Center Operations) 엔지니어 어시스턴트입니다.
+당신은 데이터센터 인프라 및 서버 룸 운영을 총괄하는 숙련된 시니어 DCO(Data Center Operations) 엔지니어 어시스턴트이자, 본 DCO 교육 대시보드 웹의 스마트 AI 비서입니다.
 사용자는 AWS DCO 양성과정 수강생 또는 데이터센터 초보 엔지니어입니다.
-랙/서버 설치(Rack & Stack), 케이블링(UTP/광케이블), 쿨링 및 공조, 전력(PDU/UPS), 하드웨어 장애 대응 등에 대해
-전문적이고 친절하며 안전 규정을 최우선으로 하는 간결하고 명확한 조언을 제공하세요.
+
+[행동 지침]
+1. 일반 질의: 데이터센터 인프라(랙/서버 설치, 광케이블링, 쿨링/공조, 전력 PDU/UPS, 리눅스 장애 대응 등) 질문에는 전문적이고 친절하며 안전 수칙을 최우선으로 간결·명확하게 한국어로 답변하세요.
+2. 웹 기능 요청: 사용자가 시간표 확인, 메모/리마인더 작성/조회/삭제, 퀴즈 출제/풀기, 지식 카드 보기, 진도율 확인, 테마 변경, 아키텍처 보기 등 웹 대시보드 기능 실행을 원하면 설명 텍스트 대신 반드시 적절한 Function Call(도구)을 호출하세요.
 """
 
+# Gemini 툴 선언 (웹 기능 연동 Tool Calling)
+DCO_WEB_TOOLS = [
+    {
+        "functionDeclarations": [
+            {
+                "name": "show_today_schedule",
+                "description": "오늘의 교육 시간표와 오전/오후 수업 일정 및 배정 강의실을 화면에 표시하고 안내합니다.",
+                "parameters": {"type": "OBJECT", "properties": {}}
+            },
+            {
+                "name": "show_tomorrow_schedule",
+                "description": "내일 또는 다음 수업일의 교육 시간표와 수업 일정을 화면에 표시합니다.",
+                "parameters": {"type": "OBJECT", "properties": {}}
+            },
+            {
+                "name": "show_full_schedule",
+                "description": "1~6주차 전체 종합 시간표를 화면에 펼쳐서 보여줍니다. 특정 주차(week_num: 1~6)를 지정할 수도 있습니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "week_num": {
+                            "type": "INTEGER",
+                            "description": "조회할 주차 번호 (1부터 6까지의 정수, 생략 시 현재 주차)"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "show_subject_book_info",
+                "description": "특정 과목의 공식 등록 교재, 저자, 배정 강의실 안내 팝업을 화면에 띄웁니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "subject_name": {
+                            "type": "STRING",
+                            "description": "과목명 (예: Datacenter Overview, Computer Hardware, Network Fundamentals, Operating Systems, Routing and Switching, Optical Communication, Scripting and Automation, 생성형AI 활용)"
+                        }
+                    },
+                    "required": ["subject_name"]
+                }
+            },
+            {
+                "name": "create_user_memo",
+                "description": "사용자의 나만의 리마인더에 새로운 메모를 작성하여 안전하게 저장하고 메모 탭으로 이동합니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "text": {
+                            "type": "STRING",
+                            "description": "작성하여 저장할 메모 본문 내용"
+                        }
+                    },
+                    "required": ["text"]
+                }
+            },
+            {
+                "name": "list_user_memos",
+                "description": "사용자가 현재까지 작성해 둔 리마인더 메모 목록을 조회하여 화면에 보여줍니다.",
+                "parameters": {"type": "OBJECT", "properties": {}}
+            },
+            {
+                "name": "request_delete_memo",
+                "description": "사용자가 특정 메모의 삭제를 요청할 때 호출합니다. 안전을 위해 사용자에게 삭제 확인(Confirm) 절차를 진행합니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "memo_keyword": {
+                            "type": "STRING",
+                            "description": "삭제하고자 하는 메모의 핵심 키워드 또는 내용"
+                        }
+                    },
+                    "required": ["memo_keyword"]
+                }
+            },
+            {
+                "name": "start_quiz",
+                "description": "실무 퀴즈 탭으로 화면을 전환하여 문제를 풀 수 있도록 하거나, 새로운 AI 퀴즈를 즉시 출제합니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "generate_new": {
+                            "type": "BOOLEAN",
+                            "description": "새로운 AI 실무 문제를 새로 생성할지 여부 (기본 false)"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "show_knowledge_card",
+                "description": "핵심 실무 지식 카드 탭으로 화면을 전환하여 현장 팁을 학습할 수 있도록 합니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "generate_new": {
+                            "type": "BOOLEAN",
+                            "description": "새로운 AI 지식 카드를 새로 생성할지 여부 (기본 false)"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "show_progress_status",
+                "description": "전체 교육 총 진도율(%)과 총 이수 시간, 잔여 시간 현황을 안내하고 진도율 카드 영역을 보여줍니다.",
+                "parameters": {"type": "OBJECT", "properties": {}}
+            },
+            {
+                "name": "switch_hub_tab",
+                "description": "우측 실무 트레이닝 허브의 특정 탭(지식카드, 퀴즈, 메모, 아키텍처)으로 화면을 전환합니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "tab_name": {
+                            "type": "STRING",
+                            "description": "전환할 탭 이름 ('card': 핵심지식, 'quiz': 실무퀴즈, 'memo': 메모/리마인더, 'arch': 프로젝트 아키텍처)"
+                        }
+                    },
+                    "required": ["tab_name"]
+                }
+            },
+            {
+                "name": "toggle_dashboard_theme",
+                "description": "대시보드 화면의 테마를 다크 모드 또는 라이트 모드로 전환합니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "theme": {
+                            "type": "STRING",
+                            "description": "원하는 테마 ('dark', 'light', 또는 'toggle')"
+                        }
+                    }
+                }
+            }
+        ]
+    }
+]
+
 CANDIDATE_MODELS = [
-    "gemini-3.8-flash",
+    "gemini-3.1-flash-lite",
     "gemini-flash-latest",
-    "gemini-3.1-flash-lite"
+    "gemini-3.8-flash"
 ]
 
 def get_today_str():
@@ -138,7 +276,7 @@ def get_current_user(token):
         return data["users"][username]
     return None
 
-def generate_gemini(prompt_text, system_instruction=None):
+def generate_gemini(prompt_text, system_instruction=None, tools=None):
     if not api_key:
         raise Exception(".env 파일에 GEMINI_API_KEY가 설정되지 않았습니다.")
     
@@ -152,6 +290,8 @@ def generate_gemini(prompt_text, system_instruction=None):
             }
             if system_instruction:
                 payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+            if tools:
+                payload["tools"] = tools
 
             req = urllib.request.Request(
                 url,
@@ -160,8 +300,26 @@ def generate_gemini(prompt_text, system_instruction=None):
             )
             with urllib.request.urlopen(req, timeout=25) as resp:
                 res_data = json.loads(resp.read().decode("utf-8"))
-                raw = res_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                return raw.replace("```json", "").replace("```", "").strip()
+                candidates = res_data.get("candidates", [{}])
+                parts = candidates[0].get("content", {}).get("parts", [{}])
+                first_part = parts[0] if parts else {}
+                
+                # Tool call (functionCall) 발생 시
+                if "functionCall" in first_part:
+                    return {
+                        "type": "function_call",
+                        "function_call": first_part["functionCall"]
+                    }
+                
+                # 일반 텍스트 응답
+                raw_text = first_part.get("text", "")
+                cleaned = raw_text.replace("```json", "").replace("```", "").strip()
+                if tools is None:
+                    return cleaned
+                return {
+                    "type": "text",
+                    "text": cleaned
+                }
         except urllib.error.HTTPError as e:
             last_error = e
             continue
@@ -411,7 +569,34 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
                 self.send_json_error(400, "질문 내용을 입력해 주세요.")
                 return
             try:
-                reply = generate_gemini(user_msg, SYSTEM_INSTRUCTION)
+                chat_res = generate_gemini(user_msg, SYSTEM_INSTRUCTION, tools=DCO_WEB_TOOLS)
+                
+                # 결과 포맷 처리: Function Calling인 경우와 일반 텍스트 구분
+                if isinstance(chat_res, dict) and chat_res.get("type") == "function_call":
+                    func_data = chat_res.get("function_call", {})
+                    fn_name = func_data.get("name", "")
+                    fn_args = func_data.get("args", {})
+                    
+                    log_activity(
+                        user["username"],
+                        "AI 챗봇 도구호출",
+                        f"함수: {fn_name}",
+                        is_api=True,
+                        extra={"question": user_msg, "function_call": func_data}
+                    )
+                    self.send_json({
+                        "type": "function_call",
+                        "function_call": {
+                            "name": fn_name,
+                            "args": fn_args
+                        },
+                        "today_usage": used_count,
+                        "daily_limit": limit
+                    })
+                    return
+
+                # 일반 대화 텍스트인 경우
+                reply = chat_res.get("text", "") if isinstance(chat_res, dict) else str(chat_res)
                 
                 # 유저 개인 저장소에 챗봇 대화 추가
                 data = load_data()
@@ -433,6 +618,7 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
                     extra={"question": user_msg, "reply": reply}
                 )
                 self.send_json({
+                    "type": "text",
                     "reply": reply,
                     "today_usage": used_count,
                     "daily_limit": limit
