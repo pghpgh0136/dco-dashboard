@@ -2308,6 +2308,7 @@
                 <span class="auth-user-badge auth-badge-guest" id="authUserBadge">GUEST</span>
                 <span id="authUsageWrap" style="font-size:11px; opacity:0.9;"><span id="authUserUsage"></span></span>
             </div>
+            <button class="auth-btn" id="btnMyReportModal" style="display:none; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399;" onclick="openMyReportModal()">📊 내 활동 보고서</button>
             <button class="auth-btn auth-btn-admin" id="btnAdminModal" style="display:none;" onclick="openAdminModal()">⚙️ 관리자 대시보드</button>
             <button class="auth-btn" id="btnRegisterAction" onclick="openRegisterModal()" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399;">회원가입</button>
             <button class="auth-btn" id="btnAuthAction" onclick="handleAuthButtonClick()">로그인</button>
@@ -5319,6 +5320,8 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 btnAuth.textContent = '로그아웃';
                 if (btnRegister) btnRegister.style.display = 'none';
                 btnAdmin.style.display = (user.role === 'admin') ? 'inline-block' : 'none';
+                const btnMyRep = document.getElementById('btnMyReportModal');
+                if (btnMyRep) btnMyRep.style.display = 'inline-block';
             } else {
                 userNameEl.textContent = '게스트 (비회원)';
                 userBadgeEl.textContent = 'GUEST';
@@ -5328,6 +5331,8 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 btnAuth.textContent = '로그인';
                 if (btnRegister) btnRegister.style.display = 'inline-block';
                 btnAdmin.style.display = 'none';
+                const btnMyRep = document.getElementById('btnMyReportModal');
+                if (btnMyRep) btnMyRep.style.display = 'none';
             }
 
             // 사용자별 데이터 동기화 및 UI 갱신
@@ -6206,5 +6211,201 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             </div>
         </div>
     </div>
+
+    <!-- 📊 개인 학습 & 활동 자동 보고서 모달 (PBL 06회) -->
+    <div id="myReportModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.72); z-index:99999; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+        <div class="modal-box" style="width: 780px; max-width: 95%; max-height: 88vh; overflow-y: auto; padding: 24px; border-radius: 14px; border: 1px solid rgba(56,189,248,0.3); box-shadow: 0 25px 50px rgba(0,0,0,0.65);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.1);">
+                <div>
+                    <h3 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px; color:#38bdf8;">
+                        <span>📊</span>
+                        <span id="myReportModalTitle">내 활동 & 학습 자동 보고서</span>
+                    </h3>
+                    <div style="font-size:12px; color:#94a3b8; margin-top:3px;">내 계정에 쌓인 메모·퀴즈·지식카드 기록만 집계하여 요약과 원본 근거를 함께 보여줍니다.</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="auth-btn" onclick="generateMyActivityReport()" style="padding:5px 12px; font-size:12px; background:#0284c7; color:#fff; border-color:#38bdf8;">🔄 보고서 다시 생성</button>
+                    <button onclick="closeMyReportModal()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">✕</button>
+                </div>
+            </div>
+
+            <!-- 1) 실행 상태 배너: 마지막 성공 보고서 시각 vs 이번 실행 로그 분리 표시 -->
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:10px; margin-bottom:16px;">
+                <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.35); border-radius:10px; padding:10px 14px;">
+                    <div style="font-size:11px; color:#34d399; font-weight:700; margin-bottom:3px;">✅ 마지막 성공 보고서 기준 시각</div>
+                    <div id="myReportLastSuccessTime" style="font-size:13.5px; font-weight:800; color:#f8fafc;">아직 생성된 성공 보고서가 없습니다</div>
+                </div>
+                <div id="myReportCurrentRunBox" style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.35); border-radius:10px; padding:10px 14px;">
+                    <div style="font-size:11px; color:#38bdf8; font-weight:700; margin-bottom:3px;">🕒 이번 실행 로그 (<span id="myReportCurrentRunTime">-</span>)</div>
+                    <div id="myReportCurrentRunMsg" style="font-size:12.5px; font-weight:700; color:#e2e8f0;">대기 중...</div>
+                </div>
+            </div>
+
+            <!-- 2) 보고서 본문 영역 -->
+            <div id="myReportBodyWrap">
+                <!-- 핵심 집계 숫자 카드 4종 -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-bottom:14px;">
+                    <div style="background:rgba(30,41,59,0.75); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px;">
+                        <div style="font-size:11px; color:#94a3b8;">📝 누적 학습 메모</div>
+                        <div id="repStatMemo" style="font-size:22px; font-weight:900; color:#38bdf8; margin-top:4px;">0건</div>
+                    </div>
+                    <div style="background:rgba(30,41,59,0.75); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px;">
+                        <div style="font-size:11px; color:#94a3b8;">🏆 최다 기록 과목</div>
+                        <div id="repStatTopSubj" style="font-size:15px; font-weight:800; color:#fbbf24; margin-top:6px;">-</div>
+                    </div>
+                    <div style="background:rgba(30,41,59,0.75); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px;">
+                        <div style="font-size:11px; color:#94a3b8;">🎯 생성한 AI 학습자료</div>
+                        <div id="repStatAiItems" style="font-size:20px; font-weight:900; color:#34d399; margin-top:4px;">0건</div>
+                    </div>
+                    <div style="background:rgba(30,41,59,0.75); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px;">
+                        <div style="font-size:11px; color:#94a3b8;">⚡ 누적 AI 호출</div>
+                        <div id="repStatApiCalls" style="font-size:22px; font-weight:900; color:#c084fc; margin-top:4px;">0회</div>
+                    </div>
+                </div>
+
+                <!-- 보고서 요약 문장 -->
+                <div style="background:rgba(15,23,42,0.85); border-left:4px solid #38bdf8; border-radius:8px; padding:14px 16px; margin-bottom:16px;">
+                    <div style="font-size:11.5px; font-weight:700; color:#38bdf8; margin-bottom:5px;">📋 자동 요약 보고서</div>
+                    <div id="repSummaryText" style="font-size:13.5px; line-height:1.6; color:#f1f5f9;">보고서를 불러오는 중입니다...</div>
+                </div>
+
+                <!-- 3) 결과의 근거가 된 원본 기록 목록 (나란히 대조용) -->
+                <div>
+                    <div style="font-size:13px; font-weight:700; color:#cbd5e1; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>🔍 보고서 수치의 근거가 된 내 원본 기록 (최근 항목)</span>
+                        <span style="font-size:11px; color:#94a3b8;">집계에 실제 사용된 데이터 출처</span>
+                    </div>
+                    <div style="overflow-x:auto; border:1px solid rgba(255,255,255,0.1); border-radius:8px;">
+                        <table class="admin-modal-table" style="margin-top:0;">
+                            <thead>
+                                <tr>
+                                    <th style="width:80px;">구분</th>
+                                    <th style="width:150px;">과목/분류</th>
+                                    <th>원본 내용 요약</th>
+                                    <th style="width:120px;">기록 시각</th>
+                                </tr>
+                            </thead>
+                            <tbody id="repEvidenceTableBody">
+                                <tr><td colspan="4" style="text-align:center; padding:14px; color:#94a3b8;">불러오는 중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openMyReportModal() {
+            if (!currentUser) {
+                alert('내 활동 보고서는 로그인 후 본인 계정 데이터로 확인할 수 있습니다.');
+                openLoginModal();
+                return;
+            }
+            const titleEl = document.getElementById('myReportModalTitle');
+            if (titleEl) titleEl.textContent = `${currentUser.name} (${currentUser.username})님의 활동 & 학습 자동 보고서`;
+
+            // 이전에 성공했던 마지막 보고서가 로컬에 캐시되어 있으면 먼저 복원 표시 (현재 실행과 섞이지 않도록 보존)
+            const cacheKey = 'dco_last_success_report_' + currentUser.username;
+            try {
+                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+                if (cached) {
+                    renderMyReportContent(cached);
+                }
+            } catch (e) {}
+
+            const modal = document.getElementById('myReportModal');
+            if (modal) modal.style.display = 'flex';
+            generateMyActivityReport();
+        }
+
+        function closeMyReportModal() {
+            const modal = document.getElementById('myReportModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function renderMyReportContent(rep) {
+            if (!rep) return;
+            document.getElementById('myReportLastSuccessTime').textContent = rep.generated_at || '-';
+            document.getElementById('repStatMemo').textContent = `${rep.memo_count || 0}건`;
+            document.getElementById('repStatTopSubj').textContent = rep.top_subject_count > 0
+                ? `${rep.top_subject} (${rep.top_subject_count}건)`
+                : '기록 없음';
+            document.getElementById('repStatAiItems').textContent = `${(rep.quiz_count || 0) + (rep.card_count || 0)}건`;
+            document.getElementById('repStatApiCalls').textContent = `${rep.total_api_calls || 0}회`;
+            document.getElementById('repSummaryText').textContent = rep.summary_sentence || '-';
+
+            const tbody = document.getElementById('repEvidenceTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            const evs = rep.evidences || [];
+            if (evs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:12px; color:#94a3b8;">근거 기록이 없습니다.</td></tr>';
+                return;
+            }
+            evs.forEach(ev => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="log-badge-act">${ev.type}</span></td>
+                    <td style="font-size:12px; color:#38bdf8;">${ev.subject}</td>
+                    <td style="font-size:12px;">${ev.summary}</td>
+                    <td style="font-size:11px; color:#94a3b8;">${ev.time}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function generateMyActivityReport() {
+            if (!currentUser) return;
+            const runTimeEl = document.getElementById('myReportCurrentRunTime');
+            const runMsgEl = document.getElementById('myReportCurrentRunMsg');
+            const runBoxEl = document.getElementById('myReportCurrentRunBox');
+
+            if (runMsgEl) runMsgEl.textContent = '⏳ 본인 계정 기록을 읽고 집계하는 중...';
+
+            const targetUrl = (window.location.protocol === 'file:')
+                ? 'http://localhost:8080/api/user/report'
+                : '/api/user/report';
+
+            try {
+                const res = await fetch(targetUrl, { headers: getAuthHeaders() });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || '보고서 생성 실패');
+                }
+
+                if (runTimeEl) runTimeEl.textContent = data.run_time || '-';
+                if (runMsgEl) runMsgEl.textContent = data.run_message || '-';
+
+                if (data.status === 'aborted') {
+                    // 자료가 없어서 중단된 경우: 기존 마지막 성공 보고서는 유지하고 이번 실행 상태만 경고 표시
+                    if (runBoxEl) {
+                        runBoxEl.style.background = 'rgba(245,158,11,0.12)';
+                        runBoxEl.style.borderColor = 'rgba(245,158,11,0.45)';
+                    }
+                    if (runMsgEl) runMsgEl.style.color = '#fbbf24';
+                    return;
+                }
+
+                if (data.status === 'success' && data.report) {
+                    if (runBoxEl) {
+                        runBoxEl.style.background = 'rgba(56,189,248,0.1)';
+                        runBoxEl.style.borderColor = 'rgba(56,189,248,0.35)';
+                    }
+                    if (runMsgEl) runMsgEl.style.color = '#38bdf8';
+
+                    const cacheKey = 'dco_last_success_report_' + currentUser.username;
+                    localStorage.setItem(cacheKey, JSON.stringify(data.report));
+                    renderMyReportContent(data.report);
+                }
+            } catch (err) {
+                if (runMsgEl) {
+                    runMsgEl.textContent = `❌ 실행 오류: ${err.message}`;
+                    runMsgEl.style.color = '#f87171';
+                }
+            }
+        }
+    </script>
+
 </body>
 </html>

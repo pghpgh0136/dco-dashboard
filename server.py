@@ -637,6 +637,145 @@ class DCODashboardHandler(SimpleHTTPRequestHandler):
                 self.send_json_error(500, f"GitHub 커밋 조회 오류: {str(e)}")
             return
 
+
+        # 5. PBL 06회: 로그인 사용자 본인 활동 & 학습 자동 보고서 (집계 + 근거 + 실행 상태)
+        elif self.path == "/api/user/report":
+            token = self.get_token_from_header()
+            user = get_current_user(token)
+            if not user:
+                self.send_json_error(401, "로그인이 필요한 서비스입니다.")
+                return
+
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            username = user["username"]
+            try:
+                # 1) 기존 테이블에서 본인 데이터만 격리 조회
+                raw_memos = supabase_request("user_memos", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "id,text,date,subject",
+                    "order": "created_at.desc"
+                }) or []
+
+                raw_quizzes = supabase_request("user_quizzes", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "id,data,created_at",
+                    "order": "created_at.desc"
+                }) or []
+
+                raw_cards = supabase_request("user_knowledge_cards", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "id,data,created_at",
+                    "order": "created_at.desc"
+                }) or []
+
+                all_usages = supabase_request("api_daily_usage", "GET", {
+                    "username": f"eq.{username}",
+                    "select": "usage_date,call_count"
+                }) or []
+
+                total_records = len(raw_memos) + len(raw_quizzes) + len(raw_cards)
+
+                # 자료가 전혀 없는 경우 -> PBL 06 요구사항대로 '자료 없음 · 읽기에서 중단' 상태 반환
+                if total_records == 0:
+                    self.send_json({
+                        "status": "aborted",
+                        "run_time": now_str,
+                        "run_message": "자료 없음 · 읽기에서 중단 (작성된 메모나 생성된 AI 학습 기록이 없습니다)",
+                        "report": None
+                    })
+                    return
+
+                # 2) Python 정확한 수치 집계
+                memo_count = len(raw_memos)
+                quiz_count = len(raw_quizzes)
+                card_count = len(raw_cards)
+                total_api_calls = sum(u.get("call_count", 0) for u in all_usages)
+
+                subject_counts = {}
+                for m in raw_memos:
+                    sub = (m.get("subject") or "개인 학습").strip()
+                    if sub in ["학습 메모", "자율 학습/일과 외", ""]:
+                        sub = "개인 학습"
+                    subject_counts[sub] = subject_counts.get(sub, 0) + 1
+
+                if subject_counts:
+                    top_subject = max(subject_counts, key=subject_counts.get)
+                    top_subject_count = subject_counts[top_subject]
+                else:
+                    top_subject = "기록 없음"
+                    top_subject_count = 0
+
+                # 3) 근거(출처) 목록 구성 (최신 원본 기록 최대 5건)
+                evidences = []
+                for m in raw_memos[:4]:
+                    evidences.append({
+                        "type": "메모",
+                        "subject": m.get("subject") or "개인 학습",
+                        "summary": (m.get("text") or "")[:45] + ("..." if len(m.get("text") or "") > 45 else ""),
+                        "time": m.get("date") or "-"
+                    })
+                for q in raw_quizzes[:2]:
+                    q_data = q.get("data") or {}
+                    evidences.append({
+                        "type": "AI 퀴즈",
+                        "subject": q_data.get("subject") or "실무 퀴즈",
+                        "summary": (q_data.get("question") or "")[:45] + "...",
+                        "time": q_data.get("created_at") or str(q.get("created_at") or "-")[:16]
+                    })
+                for c in raw_cards[:2]:
+                    c_data = c.get("data") or {}
+                    evidences.append({
+                        "type": "지식 카드",
+                        "subject": c_data.get("badge") or "실무 카드",
+                        "summary": (c_data.get("title") or "")[:45],
+                        "time": c_data.get("created_at") or str(c.get("created_at") or "-")[:16]
+                    })
+
+                # 4) 집계된 수치를 바탕으로 보고서 요약 문장 생성 (LLM 시도 후 안전 폴백)
+                summary_sentence = (
+                    f"{user.get('name', username)}님은 총 {memo_count}건의 학습 메모와 "
+                    f"{quiz_count + card_count}건의 AI 학습 자료를 축적했으며, "
+                    f"가장 집중한 분야는 '{top_subject}'({top_subject_count}건)입니다."
+                )
+
+                if api_key and memo_count > 0:
+                    try:
+                        prompt = f"""다음은 DCO 엔지니어 교육생({user.get('name', username)})의 실제 집계 수치입니다.
+- 총 학습 메모: {memo_count}건
+- 최다 기록 과목: {top_subject} ({top_subject_count}건)
+- 생성한 AI 퀴즈: {quiz_count}건, AI 지식카드: {card_count}건
+- 누적 AI 호출: {total_api_calls}회
+
+위 숫자만 정확히 근거로 삼아, 학습 현황을 격려하고 핵심을 짚어주는 한국어 보고서 요약 문장을 2문장 이내로 작성하세요. 없는 숫자를 지어내지 마세요."""
+                        ai_text = generate_gemini(prompt)
+                        if ai_text and len(ai_text) < 300:
+                            summary_sentence = ai_text.strip()
+                    except Exception:
+                        pass
+
+                log_activity(username, "개인 학습 자동 보고서 생성", f"메모 {memo_count}건 / 최다과목: {top_subject}", is_api=False)
+
+                self.send_json({
+                    "status": "success",
+                    "run_time": now_str,
+                    "run_message": f"성공 · 총 {total_records}건 원본 기록 집계 완료",
+                    "report": {
+                        "generated_at": now_str,
+                        "memo_count": memo_count,
+                        "quiz_count": quiz_count,
+                        "card_count": card_count,
+                        "total_api_calls": total_api_calls,
+                        "top_subject": top_subject,
+                        "top_subject_count": top_subject_count,
+                        "subject_breakdown": subject_counts,
+                        "summary_sentence": summary_sentence,
+                        "evidences": evidences[:5]
+                    }
+                })
+            except Exception as e:
+                self.send_json_error(500, f"개인 보고서 생성 오류: {str(e)}")
+            return
+
         super().do_GET()
 
     def do_POST(self):
