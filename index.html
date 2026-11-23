@@ -215,6 +215,19 @@
             color: #475569 !important;
             border-color: #cbd5e1 !important;
         }
+        body.light .study-quiz-select {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light .study-quiz-preview-wrap {
+            background: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light .study-quiz-item-box {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -499,6 +512,83 @@
             font-size: 11.5px;
             color: var(--text-muted);
             line-height: 1.45;
+        }
+
+        .ai-study-status-badge.active-badge {
+            background: rgba(14, 165, 233, 0.15) !important;
+            color: #38bdf8 !important;
+            border-color: rgba(56, 189, 248, 0.4) !important;
+        }
+
+        /* 🎯 AI 학습실 1단계 퀴즈 컨트롤러 및 미리보기 스타일 */
+        .study-quiz-ctrl-box {
+            margin-top: 8px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .study-quiz-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .study-quiz-select {
+            background: var(--bg-card2);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 11.5px;
+            outline: none;
+            cursor: pointer;
+            flex: 1;
+        }
+        .study-quiz-btn {
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 2px 6px rgba(14, 165, 233, 0.25);
+        }
+        .study-quiz-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(14, 165, 233, 0.35);
+        }
+        .study-quiz-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .study-quiz-preview-wrap {
+            margin-top: 12px;
+            background: var(--bg-card2);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            animation: fadeInTab 0.25s ease-out;
+        }
+        .study-quiz-item-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         /* 메인 히어로 배너 */
@@ -2273,16 +2363,39 @@
             <div class="ai-study-body" id="aiStudyBody">
                 <div class="ai-study-features-grid">
                     <!-- 기능 1: 메모 기반 퀴즈 생성 -->
-                    <div class="ai-study-card">
+                    <div class="ai-study-card" id="aiStudyCardQuiz">
                         <div class="ai-study-card-header">
                             <div class="ai-study-card-title">
                                 <span>🎯</span> 메모 기반 퀴즈 생성
                             </div>
-                            <span class="ai-study-status-badge">준비 중</span>
+                            <span class="ai-study-status-badge active-badge" id="studyQuizBadge">⚡ 이용 가능</span>
                         </div>
                         <div class="ai-study-card-desc">
                             내가 작성한 수업 및 실습 메모 내용을 바탕으로 DCO 실무 맞춤 4지선다 퀴즈를 출제합니다.
                         </div>
+
+                        <!-- 퀴즈 옵션 선택 & 생성 컨트롤러 -->
+                        <div class="study-quiz-ctrl-box">
+                            <div class="study-quiz-row">
+                                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; white-space: nowrap;">과목:</label>
+                                <select class="study-quiz-select" id="studyQuizSubjectSelect">
+                                    <option value="ALL">전체 과목 메모</option>
+                                </select>
+                            </div>
+                            <div class="study-quiz-row">
+                                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; white-space: nowrap;">문항:</label>
+                                <select class="study-quiz-select" id="studyQuizCountSelect" style="max-width: 90px;">
+                                    <option value="1">1문제</option>
+                                    <option value="3">3문제</option>
+                                </select>
+                                <button class="study-quiz-btn" id="btnStudyGenQuiz" onclick="handleStudyGenQuizClick()" style="flex: 1;">
+                                    <span>⚡ 퀴즈 출제</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 생성 상태 안내 메시지 -->
+                        <div id="studyQuizStatusMsg" style="display: none; font-size: 11.5px; padding: 6px 8px; border-radius: 6px; margin-top: 4px;"></div>
                     </div>
 
                     <!-- 기능 2: 메모 요약 및 핵심 개념 추출 -->
@@ -2348,6 +2461,28 @@
                         <div class="ai-study-card-desc">
                             망각곡선과 메모 작성일을 고려하여 내일 복습해야 할 최적의 학습 메모를 추천합니다.
                         </div>
+                    </div>
+                </div>
+
+                <!-- 🎯 퀴즈 생성 결과 및 실무퀴즈 등록 미리보기 영역 -->
+                <div class="study-quiz-preview-wrap" id="studyQuizPreviewWrap" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border); padding-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 15px;">📋</span>
+                            <span style="font-size: 13.5px; font-weight: 700; color: #38bdf8;">생성된 메모 맞춤 퀴즈 검토</span>
+                            <span id="studyQuizCountBadge" style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 2px 7px; border-radius: 10px;">0문제</span>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="study-quiz-btn" id="btnSaveAllStudyQuizzes" onclick="saveAllGeneratedQuizzesToTraining()" style="background: linear-gradient(135deg, #10b981, #059669); font-size: 11.5px; padding: 4px 10px;">
+                                <span>💾 전체 실무 퀴즈로 등록</span>
+                            </button>
+                            <button class="ai-study-toggle-btn" onclick="closeStudyQuizPreview()" style="padding: 3px 8px; font-size: 11px;">
+                                ✕ 닫기
+                            </button>
+                        </div>
+                    </div>
+                    <div id="studyQuizListContainer" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- JS에서 동적 렌더링 -->
                     </div>
                 </div>
             </div>
@@ -3932,6 +4067,9 @@ sequenceDiagram
 
         function refreshUserMemos() {
             renderMemoList();
+            if (typeof updateStudyQuizSubjectOptions === 'function') {
+                updateStudyQuizSubjectOptions();
+            }
         }
 
         function addMemo() {
@@ -4220,7 +4358,7 @@ sequenceDiagram
         }
 
         // ================= 🤖 AI 비서 Function Calling 실행기 (안전한 화이트리스트 Dispatcher) =================
-        function executeWebAssistantTool(toolName, args) {
+        async function executeWebAssistantTool(toolName, args) {
             args = args || {};
 
             switch (toolName) {
@@ -4478,6 +4616,39 @@ sequenceDiagram
                     };
                 }
 
+                // 13) AI 학습실: 메모 기반 퀴즈 생성
+                case "generate_memo_quiz": {
+                    if (!currentUser) {
+                        return {
+                            success: false,
+                            message: "⚠️ 비회원은 메모 기반 퀴즈 생성을 이용할 수 없습니다. 로그인 후 이용해주세요!"
+                        };
+                    }
+
+                    // 최상단 AI 학습실 섹션을 부드럽게 펼치고 스크롤 이동
+                    const section = document.getElementById('aiStudySection');
+                    if (section && !section.classList.contains('expanded')) {
+                        toggleAiStudyRoom();
+                    }
+                    if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    const targetSub = (args.subject || 'ALL').trim();
+                    const targetCnt = Math.max(1, Math.min(3, parseInt(args.count, 10) || 1));
+
+                    try {
+                        const result = await generateQuizFromMemo({ subject: targetSub, count: targetCnt, source: 'CHATBOT' });
+                        return {
+                            success: true,
+                            message: result.message
+                        };
+                    } catch (genErr) {
+                        return {
+                            success: false,
+                            message: `⚠️ 메모 퀴즈 생성 실패: ${genErr.message}`
+                        };
+                    }
+                }
+
                 default:
                     return {
                         success: false,
@@ -4543,7 +4714,7 @@ sequenceDiagram
                     const fnArgs = data.function_call.args || {};
                     
                     try {
-                        const execResult = executeWebAssistantTool(fnName, fnArgs);
+                        const execResult = await executeWebAssistantTool(fnName, fnArgs);
                         botEl.innerHTML = execResult.message || '요청하신 기능을 실행했습니다.';
                     } catch (toolErr) {
                         console.error('Tool execution error:', toolErr);
@@ -5167,17 +5338,21 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
         }
 
         async function syncUserDataToServer(type, items) {
-            if (!currentUser) return;
+            if (!currentUser) return false;
             const targetUrl = (window.location.protocol === 'file:')
                 ? 'http://localhost:8080/api/user/save-data'
                 : '/api/user/save-data';
             try {
-                await fetch(targetUrl, {
+                const res = await fetch(targetUrl, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ type, items })
                 });
-            } catch (e) {}
+                return res.ok;
+            } catch (e) {
+                console.warn('Supabase sync network error:', e);
+                return false;
+            }
         }
 
         async function fetchUserDataFromServer() {
@@ -5418,6 +5593,25 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                                 </div>
                             </details>
                         `;
+                    } else if (l.extra.quizzes && Array.isArray(l.extra.quizzes)) {
+                        const qListHtml = l.extra.quizzes.map((q, qIdx) => {
+                            const opts = (q.options || []).map((opt, idx) => `<li style="${idx === q.answer ? 'color:#10b981; font-weight:bold;' : ''}">${opt} ${idx === q.answer ? '✓ (정답)' : ''}</li>`).join('');
+                            return `
+                                <div style="margin-top:${qIdx > 0 ? '8px' : '0'}; padding-top:${qIdx > 0 ? '8px' : '0'}; border-top:${qIdx > 0 ? '1px dashed rgba(255,255,255,0.1)' : 'none'};">
+                                    <div style="font-weight:bold; color:#38bdf8;">[Q${qIdx + 1}] ${q.question || ''}</div>
+                                    <ol style="margin:4px 0 0 16px; padding:0; color:#cbd5e1;">${opts}</ol>
+                                    <div style="margin-top:3px; color:#67e8f9;">💡 해설: ${q.explanation || ''}</div>
+                                </div>
+                            `;
+                        }).join('');
+                        detailHtml += `
+                            <details style="margin-top:6px; font-size:11px; background:rgba(0,0,0,0.25); padding:6px; border-radius:4px; border:1px solid rgba(56,189,248,0.25);">
+                                <summary style="cursor:pointer; color:#38bdf8; font-weight:600;">🔍 메모 기반 생성 퀴즈 전체 (${l.extra.quizzes.length}문제) 보기</summary>
+                                <div style="margin-top:6px; max-height:220px; overflow-y:auto;">
+                                    ${qListHtml}
+                                </div>
+                            </details>
+                        `;
                     } else if (l.extra.reply) {
                         detailHtml += `
                             <details style="margin-top:6px; font-size:11px; background:rgba(0,0,0,0.25); padding:6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08);">
@@ -5545,6 +5739,8 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
         }
 
         /* ===== 🧠 최상단 AI 학습실 토글 동작 제어 ===== */
+        let currentGeneratedQuizzesDraft = []; // 생성된 퀴즈 임시 보관 배열 (미리보기용, DB 미저장)
+
         function toggleAiStudyRoom() {
             const section = document.getElementById('aiStudySection');
             const toggleText = document.getElementById('aiStudyToggleText');
@@ -5558,6 +5754,269 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
             if (toggleBtn) {
                 toggleBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
             }
+
+            // 열릴 때 과목 선택 옵션 갱신
+            if (isExpanded) {
+                updateStudyQuizSubjectOptions();
+            }
+        }
+
+        /* 🏷️ AI 학습실 퀴즈 과목 선택 옵션을 실제 저장된 메모 기준으로 갱신 */
+        function updateStudyQuizSubjectOptions() {
+            const select = document.getElementById('studyQuizSubjectSelect');
+            if (!select) return;
+
+            const curVal = select.value;
+            const memos = loadMemos();
+            const subjectSet = new Set();
+            memos.forEach(m => {
+                const sub = (typeof normalizeMemoSubject === 'function')
+                    ? normalizeMemoSubject(m.subject)
+                    : (m.subject || '개인 학습');
+                if (sub) subjectSet.add(sub);
+            });
+
+            select.innerHTML = '<option value="ALL">전체 과목 메모</option>';
+            subjectSet.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = `${s} 메모`;
+                select.appendChild(opt);
+            });
+            if (curVal && [...select.options].some(o => o.value === curVal)) {
+                select.value = curVal;
+            }
+        }
+
+        /* 🎯 AI 학습실 UI [퀴즈 출제] 버튼 핸들러 */
+        async function handleStudyGenQuizClick() {
+            const subjectSelect = document.getElementById('studyQuizSubjectSelect');
+            const countSelect = document.getElementById('studyQuizCountSelect');
+            const sub = subjectSelect ? subjectSelect.value : 'ALL';
+            const cnt = countSelect ? parseInt(countSelect.value, 10) : 1;
+
+            try {
+                await generateQuizFromMemo({ subject: sub, count: cnt, source: 'UI' });
+            } catch (err) {
+                console.error('Quiz Gen Error:', err);
+            }
+        }
+
+        /* 🎯 공통 퀴즈 생성 컨트롤러 (UI 및 챗봇 공유) */
+        async function generateQuizFromMemo({ subject = 'ALL', count = 1, source = 'UI' } = {}) {
+            if (!currentUser) {
+                alert('비회원은 메모 기반 퀴즈 생성을 이용할 수 없습니다.\n로그인 또는 회원가입 후 이용해주세요!');
+                openLoginModal();
+                throw new Error("로그인이 필요합니다.");
+            }
+
+            const btn = document.getElementById('btnStudyGenQuiz');
+            const statusMsg = document.getElementById('studyQuizStatusMsg');
+            let origBtnHtml = btn ? btn.innerHTML : '';
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>⏳ 생성 중...</span>';
+            }
+            if (statusMsg) {
+                statusMsg.style.display = 'block';
+                statusMsg.style.background = 'rgba(56, 189, 248, 0.1)';
+                statusMsg.style.color = '#38bdf8';
+                statusMsg.innerHTML = '⚙️ 작성하신 메모를 분석하여 맞춤 퀴즈를 출제 중입니다...';
+            }
+
+            const targetUrl = (window.location.protocol === 'file:')
+                ? 'http://localhost:8080/api/study/generate-quiz'
+                : '/api/study/generate-quiz';
+
+            try {
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ subject, count })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || '퀴즈 생성에 실패했습니다.');
+                }
+
+                currentGeneratedQuizzesDraft = data.quizzes || [];
+                renderStudyQuizPreview(currentGeneratedQuizzesDraft);
+
+                if (statusMsg) {
+                    statusMsg.style.background = 'rgba(16, 185, 129, 0.15)';
+                    statusMsg.style.color = '#34d399';
+                    statusMsg.innerHTML = `✅ ${currentGeneratedQuizzesDraft.length}문제 생성 완료! 아래 미리보기에서 확인 후 실무 퀴즈로 등록하세요.`;
+                }
+
+                // AI 학습실 섹션이 닫혀있다면 열기
+                const section = document.getElementById('aiStudySection');
+                if (section && !section.classList.contains('expanded')) {
+                    toggleAiStudyRoom();
+                }
+
+                // 미리보기 영역으로 스크롤 이동
+                const previewWrap = document.getElementById('studyQuizPreviewWrap');
+                if (previewWrap) {
+                    previewWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
+                return {
+                    success: true,
+                    count: currentGeneratedQuizzesDraft.length,
+                    message: `🎯 작성하신 <strong>[${subject === 'ALL' ? '전체' : subject}]</strong> 메모로 <strong>${currentGeneratedQuizzesDraft.length}문제</strong>가 성공적으로 출제되었습니다!<br>상단 AI 학습실 미리보기에서 검토 후 [실무 퀴즈로 등록]을 눌러보세요.`
+                };
+            } catch (err) {
+                if (statusMsg) {
+                    statusMsg.style.display = 'block';
+                    statusMsg.style.background = 'rgba(239, 68, 68, 0.15)';
+                    statusMsg.style.color = '#f87171';
+                    statusMsg.innerHTML = `⚠️ ${err.message}`;
+                }
+                if (source === 'UI') {
+                    alert('메모 퀴즈 생성 오류: ' + err.message);
+                }
+                throw err;
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origBtnHtml;
+                }
+            }
+        }
+
+        /* 📋 생성된 퀴즈 미리보기 렌더링 */
+        function renderStudyQuizPreview(quizzes) {
+            const wrap = document.getElementById('studyQuizPreviewWrap');
+            const listEl = document.getElementById('studyQuizListContainer');
+            const badgeEl = document.getElementById('studyQuizCountBadge');
+            const saveAllBtn = document.getElementById('btnSaveAllStudyQuizzes');
+            if (!wrap || !listEl) return;
+
+            if (!quizzes || quizzes.length === 0) {
+                wrap.style.display = 'none';
+                return;
+            }
+
+            wrap.style.display = 'flex';
+            if (badgeEl) badgeEl.textContent = `${quizzes.length}문제`;
+
+            // 🎯 문항 수에 따른 상단 일괄 저장 버튼 제어 (1문제일 때는 숨김, 2문제 이상일 때만 표시)
+            if (saveAllBtn) {
+                if (quizzes.length > 1) {
+                    saveAllBtn.style.display = 'inline-flex';
+                    saveAllBtn.innerHTML = `<span>📥 ${quizzes.length}문제 모두 내 퀴즈에 저장</span>`;
+                } else {
+                    saveAllBtn.style.display = 'none';
+                }
+            }
+
+            listEl.innerHTML = '';
+
+            quizzes.forEach((q, idx) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'study-quiz-item-box';
+                itemDiv.id = `studyQuizItem_${idx}`;
+
+                const optHtml = q.options.map((opt, oIdx) => {
+                    const isAns = (oIdx === q.answer);
+                    const mark = isAns ? '✅ 정답: ' : `${oIdx + 1}. `;
+                    const style = isAns ? 'color: #34d399; font-weight: 700;' : 'color: var(--text-sub);';
+                    return `<div style="font-size: 11.5px; ${style}">${mark}${opt}</div>`;
+                }).join('');
+
+                // 🎯 1문제일 때는 직관적으로 "[💾 실무 퀴즈에 저장]", 여러 문제일 때는 "[📌 이 문제만 저장]" 표시
+                const singleBtnText = (quizzes.length === 1) ? '💾 실무 퀴즈에 저장' : '📌 이 문제만 저장';
+
+                itemDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">
+                            <span style="color: #38bdf8;">${quizzes.length > 1 ? '[문제 ' + (idx + 1) + ']' : '🎯 실전 문제'}</span> ${q.question}
+                        </div>
+                        <button class="study-quiz-btn" onclick="saveSingleGeneratedQuizToTraining(${idx})" style="padding: 4px 10px; font-size: 11.5px; white-space: nowrap; background: linear-gradient(135deg, #0284c7, #0ea5e9);">
+                            ${singleBtnText}
+                        </button>
+                    </div>
+                    <div style="margin: 4px 0; padding: 6px 10px; background: var(--bg-card2); border-radius: 6px; display: flex; flex-direction: column; gap: 3px;">
+                        ${optHtml}
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); background: rgba(0,0,0,0.15); padding: 5px 8px; border-radius: 4px;">
+                        💡 <strong>해설:</strong> ${q.explanation || '실무 핵심 해설'}
+                    </div>
+                `;
+                listEl.appendChild(itemDiv);
+            });
+        }
+
+        function closeStudyQuizPreview() {
+            const wrap = document.getElementById('studyQuizPreviewWrap');
+            if (wrap) wrap.style.display = 'none';
+        }
+
+        /* 💾 단일 퀴즈 등록 */
+        async function saveSingleGeneratedQuizToTraining(idx) {
+            if (!currentGeneratedQuizzesDraft || !currentGeneratedQuizzesDraft[idx]) return;
+            const q = currentGeneratedQuizzesDraft[idx];
+            await registerQuizToSystem(q);
+        }
+
+        /* 💾 전체 퀴즈 일괄 등록 */
+        async function saveAllGeneratedQuizzesToTraining() {
+            if (!currentGeneratedQuizzesDraft || currentGeneratedQuizzesDraft.length === 0) return;
+            const btn = document.getElementById('btnSaveAllStudyQuizzes');
+            if (btn) btn.disabled = true;
+
+            try {
+                let successCount = 0;
+                for (const q of currentGeneratedQuizzesDraft) {
+                    const ok = await registerQuizToSystem(q, false);
+                    if (ok) successCount++;
+                }
+
+                // UI 동기화
+                refreshUserQuizzes();
+                alert(`🎯 ${successCount}개의 맞춤 퀴즈가 [실무 퀴즈] 탭에 성공적으로 등록되었습니다!\n우측 실무 퀴즈 탭에서 언제든 풀어보실 수 있습니다.`);
+                closeStudyQuizPreview();
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        /* ⚙️ 시스템 저장 핵심 공통 함수 (로컬 + Supabase 동기화 분리 안내) */
+        async function registerQuizToSystem(quiz, showPrompt = true) {
+            if (!currentUser) {
+                alert('로그인이 필요한 기능입니다.');
+                return false;
+            }
+
+            // 고유 ID 및 플래그 보장
+            if (!quiz.id) {
+                quiz.id = 'memo_q_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 5);
+            }
+            quiz.isAi = true;
+            quiz.source = "MEMO_AI";
+
+            // 1. 로컬 저장소 우선 등록
+            const saved = loadSavedAiQuizzes();
+            saved.push(quiz);
+            const key = 'dco_ai_quizzes_' + currentUser.username;
+            localStorage.setItem(key, JSON.stringify(saved));
+
+            // 2. dcoQuizList 상태 동기화
+            refreshUserQuizzes();
+
+            // 3. Supabase 동기화
+            const isSynced = await syncUserDataToServer('quizzes', saved);
+
+            if (showPrompt) {
+                if (isSynced) {
+                    alert(`🎯 [${quiz.question.slice(0, 30)}...] 문제가 [실무 퀴즈] 탭 및 클라우드 데이터베이스에 안전하게 영구 저장되었습니다!`);
+                } else {
+                    alert(`✅ 로컬 브라우저에 문제가 등록되었습니다.\n(클라우드 동기화는 네트워크 재연결 시 자동으로 반영됩니다)`);
+                }
+            }
+            return true;
         }
 
         // 초기 로드 시 인증 정보 복원

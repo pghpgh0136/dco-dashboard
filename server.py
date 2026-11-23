@@ -233,6 +233,23 @@ DCO_WEB_TOOLS = [
                         }
                     }
                 }
+            },
+            {
+                "name": "generate_memo_quiz",
+                "description": "사용자가 작성한 학습 메모를 바탕으로 맞춤 퀴즈를 출제합니다. 과목(subject)이나 문제 수(count)가 주어지면 반영합니다.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "subject": {
+                            "type": "STRING",
+                            "description": "퀴즈 대상 과목 (예: '네트워크', '서버', '리눅스', '전체' 등. 기본값: '전체')"
+                        },
+                        "count": {
+                            "type": "INTEGER",
+                            "description": "생성할 문제 수 (기본값: 1, 최대: 3)"
+                        }
+                    }
+                }
             }
         ]
     }
@@ -1029,6 +1046,125 @@ AWS 및 데이터센터 인프라 현장에서 필수적인 실무 꿀팁 카드
                 self.send_json(quiz_data)
             except Exception as e:
                 self.send_json_error(500, f"퀴즈 출제 오류: {str(e)}")
+
+        # 4) AI 학습실: 메모 기반 퀴즈 생성 (생성만 수행하고 DB에는 자동 저장하지 않음)
+        elif self.path == "/api/study/generate-quiz":
+            if not user:
+                self.send_json_error(401, "비회원은 메모 기반 퀴즈 생성을 이용할 수 없습니다. 로그인 후 이용해주세요.")
+                return
+
+            ok, err_msg, used_count, limit = check_and_increment_daily_usage(user["username"])
+            if not ok:
+                self.send_json_error(429, err_msg)
+                return
+
+            req_subject = (req_data.get("subject") or "ALL").strip()
+            req_count = max(1, min(3, int(req_data.get("count") or 1)))
+
+            try:
+                # 1. 서버가 인증된 사용자의 user_memos를 Supabase에서 직접 격리 조회
+                memo_params = {"username": f"eq.{user['username']}", "select": "id,text,date,subject"}
+                user_memos = supabase_request("user_memos", "GET", memo_params) or []
+
+                # 과목 필터링 (ALL이 아닌 경우)
+                if req_subject != "ALL" and req_subject != "전체":
+                    s_lower = req_subject.lower()
+                    filtered_memos = [
+                        m for m in user_memos
+                        if s_lower in (m.get("subject") or "").lower() or (m.get("subject") or "").lower() in s_lower
+                    ]
+                else:
+                    filtered_memos = user_memos
+
+                if not filtered_memos:
+                    # 일일 호출 횟수 복구 (메모가 없어 생성을 진행하지 못한 경우 카운트 롤백)
+                    try:
+                        today = get_today_str()
+                        supabase_request("api_daily_usage", "POST", body={
+                            "username": user["username"],
+                            "usage_date": today,
+                            "call_count": max(0, used_count - 1),
+                            "last_called_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        }, headers_extra={"Prefer": "resolution=merge-duplicates,return=representation"})
+                    except Exception:
+                        pass
+
+                    subject_desc = f"'{req_subject}' 과목의 " if req_subject not in ["ALL", "전체"] else ""
+                    self.send_json_error(400, f"작성된 {subject_desc}학습 메모가 없습니다. 먼저 [메모/리마인더] 탭에서 학습 메모를 작성해 주세요.")
+                    return
+
+                # 유의미한 최근 메모 최대 8건 결합 (너무 긴 토큰 방지)
+                recent_memos = filtered_memos[-8:]
+                memo_context_lines = []
+                for idx, m in enumerate(recent_memos, 1):
+                    sub = m.get("subject", "학습")
+                    txt = m.get("text", "").strip()
+                    if txt:
+                        memo_context_lines.append(f"[메모 {idx} / 과목: {sub}]\n{txt}")
+                
+                memo_context = "\n\n".join(memo_context_lines)
+
+                prompt = f"""당신은 AWS DCO 수석 기술 면접관이자 전문 교육 강사입니다.
+아래 제공된 [학습자 메모 내용]을 철저히 분석하여, 학습자가 필기한 핵심 기술 개념이나 문제 해결 과정을 평가할 수 있는 실무 4지선다형 기술 퀴즈를 정확히 {req_count}문제 출제해주세요.
+
+[학습자 메모 내용]:
+---
+{memo_context}
+---
+
+[출제 요구사항]:
+1. 반드시 학습자가 메모한 내용에 기반하여 정답과 오답을 도출해야 합니다.
+2. 실무 현장 장애 해결(Troubleshooting) 시나리오 형태를 권장합니다.
+3. 보기(options) 4개는 명확해야 하며 정답은 정확히 1개여야 합니다.
+4. answer는 0, 1, 2, 3 중 올바른 정답의 인덱스 숫자여야 합니다.
+5. 반드시 마크다운 코드블록(```json) 없이 순수한 JSON 배열 문자열만 출력하세요:
+[
+  {{
+    "subject": "{req_subject if req_subject not in ['ALL', '전체'] else '실무 트레이닝'} (메모 기반)",
+    "question": "구체적인 기술 상황 또는 장애 시나리오 문제...",
+    "options": ["보기1", "보기2", "보기3", "보기4"],
+    "answer": 0,
+    "explanation": "이 보기가 정답인 구체적인 실무 근거 및 관련 메모 요약"
+  }}
+]"""
+
+                quiz_json_str = generate_gemini(prompt)
+                quizzes_raw = json.loads(quiz_json_str)
+
+                # 단일 객체로 반환된 경우 배열로 감싸기
+                if isinstance(quizzes_raw, dict):
+                    quizzes_raw = [quizzes_raw]
+
+                quizzes_list = []
+                for q_item in quizzes_raw:
+                    q_id = "memo_q_" + str(uuid.uuid4())[:8]
+                    q_item["id"] = q_id
+                    q_item["isAi"] = True
+                    q_item["source"] = "MEMO_AI"
+                    q_item["created_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    quizzes_list.append(q_item)
+
+                # 요약 문자열 (첫 번째 문제 제목 표시)
+                first_q = quizzes_list[0].get("question", "") if quizzes_list else ""
+                log_details = f"메모 퀴즈 {len(quizzes_list)}문제 출제 (과목: {req_subject}): {first_q[:50]}..."
+
+                log_activity(
+                    user["username"],
+                    "AI 메모 기반 퀴즈 생성",
+                    log_details,
+                    is_api=True,
+                    extra={"subject": req_subject, "count": len(quizzes_list), "quizzes": quizzes_list}
+                )
+
+                # ⚠️ 중요: Supabase에 자동 저장하지 않고 생성된 퀴즈 배열만 반환
+                self.send_json({
+                    "success": True,
+                    "quizzes": quizzes_list,
+                    "today_usage": used_count,
+                    "daily_limit": limit
+                })
+            except Exception as e:
+                self.send_json_error(500, f"메모 퀴즈 생성 오류: {str(e)}")
         else:
             super().do_POST()
 
